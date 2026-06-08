@@ -295,7 +295,6 @@ internal fun LibraryScreenV2(
     serverUrl: String,
     token: String,
     onOpenCreators: () -> Unit,
-    onOpenBd2Spine: () -> Unit,
     onLogout: () -> Unit
 ) {
     val context = LocalContext.current
@@ -875,10 +874,6 @@ internal fun LibraryScreenV2(
                 onOpenCreators = {
                     scope.launch { drawerState.close() }
                     onOpenCreators()
-                },
-                onOpenBd2Spine = {
-                    scope.launch { drawerState.close() }
-                    onOpenBd2Spine()
                 },
                 onLogout = {
                     scope.launch { drawerState.close() }
