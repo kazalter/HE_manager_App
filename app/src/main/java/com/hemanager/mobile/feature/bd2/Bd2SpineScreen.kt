@@ -548,10 +548,11 @@ private fun SpinePlayerView(
     val assetId = asset.optString("asset_id", "")
 
     val embedUrl = remember(serverUrl, skeletonUrl, atlasUrl) {
-        val base = serverUrl.trimEnd('/')
+        // BD2 Spine embed page is served by the frontend (port 8012), not the backend API (8010).
+        val webBase = serverUrl.trimEnd('/').replace(":8010", ":8012")
         val encodedSkel = Uri.encode(skeletonUrl)
         val encodedAtlas = Uri.encode(atlasUrl)
-        "$base/#/bd2-spine/embed?skeletonUrl=$encodedSkel&atlasUrl=$encodedAtlas"
+        "$webBase/#/bd2-spine/embed?skeletonUrl=$encodedSkel&atlasUrl=$encodedAtlas"
     }
 
     DisposableEffect(Unit) {
@@ -572,10 +573,20 @@ private fun SpinePlayerView(
                 animations.value = anims
                 skins.value = sks
                 isWebLoading.value = false
-                currentAnimation.value = anims.firstOrNull {
+                val initialAnim = anims.firstOrNull {
                     it.contains("idle", ignoreCase = true) || it.contains("lobby", ignoreCase = true)
                 } ?: anims.firstOrNull() ?: ""
-                currentSkin.value = sks.firstOrNull() ?: ""
+                val initialSkin = sks.firstOrNull() ?: ""
+                currentAnimation.value = initialAnim
+                currentSkin.value = initialSkin
+                // Auto-play the initial animation
+                if (initialAnim.isNotEmpty()) {
+                    android.util.Log.d("Bd2Spine", "Auto-playing: $initialAnim")
+                    webViewRef.value?.evaluateJavascript(
+                        "window.playAnimation('${initialAnim.replace("'", "\\'")}', true)",
+                        null
+                    )
+                }
             }
         }
     }
@@ -645,7 +656,12 @@ private fun SpinePlayerView(
                     settings.cacheMode = WebSettings.LOAD_NO_CACHE
 
                     webView.webViewClient = WebViewClient()
-                    webView.webChromeClient = WebChromeClient()
+                    webView.webChromeClient = object : WebChromeClient() {
+                        override fun onConsoleMessage(msg: android.webkit.ConsoleMessage): Boolean {
+                            android.util.Log.d("Bd2Spine", "[${msg.messageLevel()}] ${msg.message()}")
+                            return true
+                        }
+                    }
                     webView.setBackgroundColor(android.graphics.Color.TRANSPARENT)
                     webView.setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
 
@@ -653,6 +669,15 @@ private fun SpinePlayerView(
                     webView.addJavascriptInterface(bridge, "Android")
                     webViewRef.value = webView
                     webView.loadUrl(embedUrl)
+
+                    // Fallback: if Spine Player doesn't call back in 15s, treat as error
+                    scope.launch {
+                        kotlinx.coroutines.delay(15_000)
+                        if (isWebLoading.value) {
+                            isWebLoading.value = false
+                            webError.value = "Spine 渲染超时（15秒未完成初始化）"
+                        }
+                    }
                     webView
                 },
                 update = { webView -> },
@@ -722,19 +747,19 @@ private fun SpinePlayerView(
                 hideEffects = hideEffects.value,
                 onHideEffectsChange = { checked ->
                     hideEffects.value = checked
-                    webViewRef.value?.loadUrl("javascript:window.setHideEffectLayers($checked)")
+                    webViewRef.value?.evaluateJavascript("window.setHideEffectLayers($checked)", null)
                 },
                 skins = skins.value,
                 currentSkin = currentSkin.value,
                 onSkinChange = { skin ->
                     currentSkin.value = skin
-                    webViewRef.value?.loadUrl("javascript:window.setSkin('$skin')")
+                    webViewRef.value?.evaluateJavascript("window.setSkin('${skin.replace("'", "\\'")}')", null)
                 },
                 animations = animations.value,
                 currentAnimation = currentAnimation.value,
                 onAnimationChange = { anim ->
                     currentAnimation.value = anim
-                    webViewRef.value?.loadUrl("javascript:window.playAnimation('$anim', true)")
+                    webViewRef.value?.evaluateJavascript("window.playAnimation('${anim.replace("'", "\\'")}', true)", null)
                 }
             )
         }
