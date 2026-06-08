@@ -1,0 +1,23 @@
+# --- Android build artifacts ------------------------------------------------
+.gradle/
+build/
+app/build/
+.idea/
+local.properties
+
+# --- Logs & memory dumps ----------------------------------------------------
+*.log
+*.hprof
+
+# --- IDE / editor state -----------------------------------------------------
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+
+# --- OS scratch -------------------------------------------------------------
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak
