@@ -38,6 +38,13 @@
    加 .gitignore，**不允许把混合状态文件留给下一次会话**。这是预防"下次 Codex 进来踩这条规则"
    的源头治理。
 
+## ⚠️ 部署与环境修改规则
+
+- **改动环境目标**：当用户要求“修改后端”或“修改网页前端（如 EmbedSpine 等）”时，若未特别指明，默认都是指**修改并部署到 Linux 服务器（192.168.50.1）上的 Docker 化服务**。
+  - 需要在本地 Windows 对应仓库中修改代码，如涉及前端需本地执行 `npm run build` 编译。
+  - 之后利用 Python SFTP/SSH 脚本（如 paramiko）将修改后的文件（或编译后的 `dist/` 目录）上传并覆盖到 Linux 服务器上的 `/opt/stacks/he-manager/` 对应路径。
+  - 上传完成后，需通过 SSH 执行 `cd /opt/stacks/he-manager && docker compose restart` 重新启动容器使其生效。
+
 ## 跑 / 构建 / 测试
 
 - **安卓 debug**（日常迭代，快）：`android_preview.bat`（`installDebug`，有 `-Watch`）。
