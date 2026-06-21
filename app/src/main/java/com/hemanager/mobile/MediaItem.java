@@ -22,6 +22,8 @@ public class MediaItem {
     /** 媒体来源站点。null/空 = 本地；"x" / "wnacg" / "asmr" 等 = 外部导入。
      *  来自 backend Media.source_site，用于"来源"筛选。 */
     public String sourceSite;
+    public String createdAt;
+    public String lastOpenedAt;
     public List<TagItem> tags = new ArrayList<>();
 
     public static MediaItem fromJson(JSONObject json) {
@@ -46,6 +48,8 @@ public class MediaItem {
             String s = json.optString("source_site", "").trim();
             item.sourceSite = s.isEmpty() ? null : s;
         }
+        item.createdAt = nullableString(json, "created_at");
+        item.lastOpenedAt = nullableString(json, "last_opened_at");
         JSONArray tagsArray = json.optJSONArray("tags");
         if (tagsArray != null) {
             for (int i = 0; i < tagsArray.length(); i++) {
@@ -54,5 +58,10 @@ public class MediaItem {
             }
         }
         return item;
+    }
+
+    private static String nullableString(JSONObject json, String key) {
+        if (json.isNull(key)) return "";
+        return json.optString(key, "").trim();
     }
 }

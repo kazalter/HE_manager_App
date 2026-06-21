@@ -2,7 +2,6 @@ package com.hemanager.mobile.ui.theme
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 
 /**
  * App 的标志性深色径向渐变背景。
@@ -14,9 +13,9 @@ import androidx.compose.ui.graphics.Color
 fun AppBackgroundBrush(): Brush {
     return Brush.radialGradient(
         listOf(
-            Color(0xFF17213C),
-            Color(0xFF0B1020),
-            Color(0xFF070A12)
+            HeColors.Yellow.copy(alpha = 0.032f),
+            HeColors.Ink,
+            HeColors.Void
         ),
         radius = 1250f
     )

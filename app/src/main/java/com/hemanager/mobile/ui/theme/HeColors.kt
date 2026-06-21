@@ -54,35 +54,40 @@ object HeColors {
     val OnYellow = Color(0xFF0E0F00)
 
     // ===================================================================
-    // 旧蓝紫色板 —— player / audio / 当前 library V2 仍在用，保留
+    // Material / player bridge colors.
+    //
+    // Earlier builds used a blue-purple Material palette here. The main app
+    // has since moved to the HE OP black + yellow language, so these bridge
+    // tokens now map Material components and player controls back onto that
+    // same visual system.
     // ===================================================================
 
     // ---- 主色 ----
-    val Primary = Color(0xFF8EA2FF)
-    val Secondary = Color(0xFF58E6C2)
-    val Tertiary = Color(0xFFF6C46B)
+    val Primary = Yellow
+    val Secondary = Cyan
+    val Tertiary = Color(0xFFF0B75A)
 
     // ---- 表面 / 背景 ----
-    val Background = Color(0xFF070A12)
-    val Surface = Color(0xFF111620)
-    val SurfaceVariant = Color(0xFF202838)
-    val PrimaryContainer = Color(0xFF28336D)
-    val SecondaryContainer = Color(0xFF123C34)
-    val TertiaryContainer = Color(0xFF483615)
+    val Background = Ink
+    val Surface = Panel
+    val SurfaceVariant = SurfaceAlt
+    val PrimaryContainer = Color(0xFF3A3300)
+    val SecondaryContainer = Color(0xFF0F3A35)
+    val TertiaryContainer = Color(0xFF463713)
     val ErrorContainer = Color(0xFF54212F)
 
     // ---- 前景 / 文字 ----
-    val OnPrimary = Color(0xFF080B12)
-    val OnSecondary = Color(0xFF0E1715)
+    val OnPrimary = OnYellow
+    val OnSecondary = Color(0xFF061412)
     val OnTertiary = Color(0xFF15100A)
-    val OnBackground = Color(0xFFF4F7FF)
-    val OnSurface = Color(0xFFF4F7FF)
-    val OnSurfaceVariant = Color(0xFFC6CFDD)
-    val OnSurfaceMuted = Color(0xB3F4F7FF)
+    val OnBackground = OpWhite
+    val OnSurface = OpWhite
+    val OnSurfaceVariant = OpWhiteSoft
+    val OnSurfaceMuted = OpWhite.copy(alpha = 0.70f)
     val OnErrorContainer = Color(0xFFFFD9DD)
 
     // ---- 语义 / 状态 ----
-    val Danger = Color(0xFFFF8FA3)
+    val Danger = OpDanger
 
     /**
      * 媒体观看状态相关的语义色。
@@ -90,9 +95,9 @@ object HeColors {
      * 后续可逐步迁移到这里。
      */
     object Status {
-        val Viewed = Color(0xFF58E6C2)      // 已看完（绿）
-        val Viewing = Color(0xFF8EA2FF)     // 继续看（蓝紫）
-        val Favorite = Color(0xFFF6C46B)    // 收藏（金）
+        val Viewed = Online                 // 已看完（绿）
+        val Viewing = Yellow                // 继续看（黄）
+        val Favorite = Tertiary             // 收藏（金）
         val Missing = Danger                // 文件缺失
     }
 
@@ -118,6 +123,7 @@ val HeColorScheme: ColorScheme = darkColorScheme(
     primary = HeColors.Primary,
     secondary = HeColors.Secondary,
     tertiary = HeColors.Tertiary,
+    error = HeColors.OpDanger,
     background = HeColors.Background,
     surface = HeColors.Surface,
     surfaceVariant = HeColors.SurfaceVariant,

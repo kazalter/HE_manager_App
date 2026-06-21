@@ -285,8 +285,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = android.graphics.Color.rgb(7, 10, 18)
-        window.navigationBarColor = android.graphics.Color.rgb(7, 10, 18)
+        window.statusBarColor = android.graphics.Color.rgb(8, 9, 12)
+        window.navigationBarColor = android.graphics.Color.rgb(8, 9, 12)
 
         // 刘海/挖孔屏：永远不让内容延伸进 cutout 区域。各 OEM 默认值不统一（状态栏隐藏后内容
         // 可能滑到挖孔下面），显式钉死成 NEVER，挖孔区会保留一条背景色窄边而不是覆盖 UI。
@@ -555,7 +555,12 @@ class MainActivity : ComponentActivity() {
                 CreatorsScreen(
                     serverUrl = serverUrl,
                     token = token,
-                    onBack = { showCreators = false }
+                    onBack = { showCreators = false },
+                    onLogout = {
+                        showCreators = false
+                        prefs.clearToken()
+                        token = ""
+                    }
                 )
             } else {
                 LibraryScreenV2(

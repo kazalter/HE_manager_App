@@ -71,7 +71,7 @@ fun StatNumber(
                 fontFamily = GeistMono,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 18.sp,
-                letterSpacing = (-0.3).sp,
+                letterSpacing = 0.sp,
             )
             if (total != null) {
                 Text(

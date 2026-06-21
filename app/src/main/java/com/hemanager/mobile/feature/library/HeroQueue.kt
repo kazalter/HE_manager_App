@@ -34,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -72,11 +73,13 @@ internal fun HeroFeature(
 ) {
     val accent = typeAccent(item.mediaType)
     val progress = progressFraction(item)
+    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+    val heroHeight = (screenHeight * 0.56f).coerceIn(340.dp, 430.dp)
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(460.dp)
+            .height(heroHeight)
             .clip(com.hemanager.mobile.ui.theme.CutCornerShape(14.dp))
             .background(HeColors.Panel),
     ) {
@@ -139,7 +142,7 @@ internal fun HeroFeature(
                 fontWeight = FontWeight.Black,
                 fontSize = 30.sp,
                 lineHeight = 34.sp,
-                letterSpacing = (-0.5).sp,
+                letterSpacing = 0.sp,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.widthIn(max = 320.dp),
@@ -171,18 +174,24 @@ internal fun HeroFeature(
             if (progress != null) {
                 ProgressO(value = progress, height = 3.dp)
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 YellowCTA(
-                    text = if (item.viewStatus == "viewing") "CONTINUE · 继续" else "PLAY · 播放",
+                    text = if (item.viewStatus == "viewing") "继续观看" else "播放",
                     onClick = { onContinue(false) },
                     icon = Icons.Default.PlayArrow,
                     size = CtaSize.Medium,
+                    fullWidth = true,
+                    modifier = Modifier.weight(1f),
                 )
                 GhostCta(
-                    text = if (item.favorite) "STARRED" else "STAR",
+                    text = if (item.favorite) "已收藏" else "收藏",
                     onClick = onToggleStar,
                     icon = if (item.favorite) Icons.Default.Star else Icons.Default.StarBorder,
                     size = CtaSize.Medium,
+                    modifier = Modifier.widthIn(min = 104.dp),
                 )
             }
         }

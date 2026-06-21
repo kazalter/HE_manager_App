@@ -52,10 +52,10 @@ fun Slash(
         Text(
             text = cn,
             color = color,
-            fontFamily = Oxanium,
+            fontFamily = NotoSansSC,
             fontSize = fontSize,
             fontWeight = FontWeight.SemiBold,
-            letterSpacing = 1.8.sp,
+            letterSpacing = 0.sp,
         )
         if (en != null) {
             Spacer(Modifier.width(4.dp))
@@ -89,7 +89,7 @@ fun OpTitle(
             fontFamily = NotoSansSC,
             fontWeight = FontWeight.Black,
             fontSize = sizeSp,
-            letterSpacing = (-1).sp,
+            letterSpacing = 0.sp,
             lineHeight = sizeSp,
         )
         if (en != null) {

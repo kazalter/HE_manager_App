@@ -48,6 +48,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -91,6 +92,14 @@ fun LoginScreen(
 ) {
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
+    val configuration = LocalConfiguration.current
+    val compact = configuration.screenHeightDp < 700
+    val pageVerticalPadding = if (compact) 22.dp else 34.dp
+    val logoGap = if (compact) 34.dp else 56.dp
+    val preFormGap = if (compact) 26.dp else 40.dp
+    val fieldGap = if (compact) 12.dp else 18.dp
+    val ctaGap = if (compact) 16.dp else 22.dp
+    val bottomGap = if (compact) 18.dp else 28.dp
     val userFocus = remember { FocusRequester() }
     val passFocus = remember { FocusRequester() }
 
@@ -146,7 +155,7 @@ fun LoginScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 34.dp)
+                .padding(horizontal = 24.dp, vertical = pageVerticalPadding)
                 .widthIn(max = 560.dp),
         ) {
             // Logo row
@@ -164,7 +173,7 @@ fun LoginScreen(
                 Spacer(Modifier.weight(1f))
                 CodeChip("v0.4.2 · ARCHIVE")
             }
-            Spacer(Modifier.height(56.dp))
+            Spacer(Modifier.height(logoGap))
 
             // 标题
             Slash(cn = "连接终端", en = "Connect")
@@ -180,7 +189,7 @@ fun LoginScreen(
                 lineHeight = 22.sp,
             )
 
-            Spacer(Modifier.height(40.dp))
+            Spacer(Modifier.height(preFormGap))
 
             // 表单
             TerminalField(
@@ -193,14 +202,14 @@ fun LoginScreen(
                 imeAction = ImeAction.Next,
                 onImeAction = { userFocus.requestFocus() },
             )
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(fieldGap))
             ServerHistoryPanel(
                 history = serverHistory,
                 selectedServer = normalizeServerUrl(server),
                 onSelect = { server = it },
                 onRemove = onRemoveServer,
             )
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(fieldGap))
             TerminalField(
                 label = "OPERATOR",
                 labelCN = "账号",
@@ -211,7 +220,7 @@ fun LoginScreen(
                 onImeAction = { passFocus.requestFocus() },
                 focusRequester = userFocus,
             )
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(fieldGap))
             TerminalField(
                 label = "PASS-KEY",
                 labelCN = "密码",
@@ -224,7 +233,7 @@ fun LoginScreen(
                 focusRequester = passFocus,
             )
 
-            Spacer(Modifier.height(22.dp))
+            Spacer(Modifier.height(ctaGap))
 
             // 主 CTA
             Box(Modifier.fillMaxWidth()) {
@@ -306,7 +315,7 @@ fun LoginScreen(
                 )
             }
 
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(bottomGap))
         }
     }
 }
@@ -549,12 +558,12 @@ private fun BackgroundGrid() {
 private fun DecorativeHeadline() {
     Text(
         text = "HE\nARCH",
-        color = Color.White.copy(alpha = 0.018f),
+        color = Color.White.copy(alpha = 0.012f),
         fontFamily = Oxanium,
         fontWeight = FontWeight.Bold,
-        fontSize = 200.sp,
-        letterSpacing = (-8).sp,
-        lineHeight = 160.sp,
+        fontSize = 176.sp,
+        letterSpacing = 0.sp,
+        lineHeight = 142.sp,
         modifier = Modifier.padding(start = 0.dp, top = 0.dp),
     )
 }

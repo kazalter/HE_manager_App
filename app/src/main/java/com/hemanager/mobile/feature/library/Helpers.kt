@@ -476,8 +476,13 @@ internal fun progressColor(item: MediaItem): Color {
 }
 
 internal fun readableError(error: Throwable): String {
+    if (error is ApiClient.UnauthorizedException) return "登录已过期，请重新登录"
     val message = error.message ?: return "读取失败"
     return when {
+        message.contains("401", ignoreCase = true) -> "登录已过期，请重新登录"
+        message.contains("Unauthorized", ignoreCase = true) -> "登录已过期，请重新登录"
+        message.contains("Could not validate credentials", ignoreCase = true) -> "登录已过期，请重新登录"
+        message.contains("登录已过期", ignoreCase = true) -> "登录已过期，请重新登录"
         message.contains("Failed to connect", ignoreCase = true) -> "无法连接服务器，请确认电脑端服务已启动"
         message.contains("timeout", ignoreCase = true) -> "连接超时，请检查网络或服务器地址"
         else -> message
@@ -504,6 +509,38 @@ internal fun matchesSource(item: MediaItem, source: String): Boolean = when {
     source.isBlank() || source == "all" -> true
     source == "local" -> item.sourceSite.isNullOrBlank()
     else -> item.sourceSite?.equals(source, ignoreCase = true) == true
+}
+
+internal fun matchesSearch(item: MediaItem, query: String): Boolean {
+    val needle = query.trim().lowercase(Locale.ROOT)
+    if (needle.isBlank()) return true
+    val fields = listOfNotNull(
+        item.title,
+        item.mediaType,
+        item.extension,
+        item.sourceSite,
+        mediaTypeLabelV2(item.mediaType),
+    )
+    return fields.any { it.lowercase(Locale.ROOT).contains(needle) } ||
+        item.tags?.any { tag -> tag.name.lowercase(Locale.ROOT).contains(needle) } == true
+}
+
+internal fun sortMediaItems(items: List<MediaItem>, sortFilter: String): List<MediaItem> {
+    return when (sortFilter) {
+        "opened" -> items.sortedWith(
+            compareByDescending<MediaItem> { it.lastOpenedAt.orEmpty() }
+                .thenByDescending { it.id }
+        )
+        "rating" -> items.sortedWith(
+            compareByDescending<MediaItem> { it.rating }
+                .thenByDescending { it.id }
+        )
+        "name" -> items.sortedWith(
+            compareBy<MediaItem> { it.title.orEmpty().lowercase(Locale.ROOT) }
+                .thenByDescending { it.id }
+        )
+        else -> items.sortedByDescending { it.id }
+    }
 }
 
 /** HE OP 装饰代码：VID-A001 / MNG-X042 / ... 仅用于卡片角标装饰，不参与任何逻辑。 */

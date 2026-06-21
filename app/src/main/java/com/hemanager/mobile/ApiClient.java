@@ -10,12 +10,25 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
 public class ApiClient {
+    public static class UnauthorizedException extends RuntimeException {
+        public UnauthorizedException(String msg) {
+            super(msg);
+        }
+    }
+
+    private interface ThrowingSupplier<T> {
+        T get() throws Exception;
+    }
+
     public final String baseUrl;
     public final String token;
 
@@ -108,44 +121,50 @@ public class ApiClient {
     }
 
     public List<MediaItem> getMedia(String mediaType, String search, String sort) throws Exception {
-        Uri.Builder builder = Uri.parse(baseUrl + "/mobile/media").buildUpon();
-        builder.appendQueryParameter("sort", sort == null || sort.isEmpty() ? "date" : sort);
-        if (mediaType != null && !mediaType.isEmpty()) builder.appendQueryParameter("media_type", mediaType);
-        if (search != null && !search.trim().isEmpty()) builder.appendQueryParameter("search", search.trim());
-        JSONArray array = getJsonArray(builder.build().toString().substring(baseUrl.length()));
-        List<MediaItem> items = new ArrayList<>();
-        for (int i = 0; i < array.length(); i++) {
-            items.add(MediaItem.fromJson(array.getJSONObject(i)));
-        }
-        return items;
+        return retrying(() -> {
+            Uri.Builder builder = Uri.parse(baseUrl + "/mobile/media").buildUpon();
+            builder.appendQueryParameter("sort", sort == null || sort.isEmpty() ? "date" : sort);
+            if (mediaType != null && !mediaType.isEmpty()) builder.appendQueryParameter("media_type", mediaType);
+            if (search != null && !search.trim().isEmpty()) builder.appendQueryParameter("search", search.trim());
+            JSONArray array = getJsonArray(builder.build().toString().substring(baseUrl.length()));
+            List<MediaItem> items = new ArrayList<>();
+            for (int i = 0; i < array.length(); i++) {
+                items.add(MediaItem.fromJson(array.getJSONObject(i)));
+            }
+            return items;
+        });
     }
 
     /** 列出所有创作者（按类型筛 / 模糊搜索 / 排序）。后端：GET /mobile/creators */
     public List<Creator> getCreators(String typeFilter, String search, String sort) throws Exception {
-        Uri.Builder builder = Uri.parse(baseUrl + "/mobile/creators").buildUpon();
-        if (typeFilter != null && !typeFilter.isEmpty() && !"all".equals(typeFilter)) {
-            builder.appendQueryParameter("kind", typeFilter);
-        }
-        if (search != null && !search.trim().isEmpty()) {
-            builder.appendQueryParameter("search", search.trim());
-        }
-        if (sort != null && !sort.isEmpty()) {
-            builder.appendQueryParameter("sort", sort);
-        }
-        JSONArray array = getJsonArray(builder.build().toString().substring(baseUrl.length()));
-        List<Creator> creators = new ArrayList<>();
-        for (int i = 0; i < array.length(); i++) {
-            creators.add(Creator.fromJson(array.getJSONObject(i)));
-        }
-        return creators;
+        return retrying(() -> {
+            Uri.Builder builder = Uri.parse(baseUrl + "/mobile/creators").buildUpon();
+            if (typeFilter != null && !typeFilter.isEmpty() && !"all".equals(typeFilter)) {
+                builder.appendQueryParameter("kind", typeFilter);
+            }
+            if (search != null && !search.trim().isEmpty()) {
+                builder.appendQueryParameter("search", search.trim());
+            }
+            if (sort != null && !sort.isEmpty()) {
+                builder.appendQueryParameter("sort", sort);
+            }
+            JSONArray array = getJsonArray(builder.build().toString().substring(baseUrl.length()));
+            List<Creator> creators = new ArrayList<>();
+            for (int i = 0; i < array.length(); i++) {
+                creators.add(Creator.fromJson(array.getJSONObject(i)));
+            }
+            return creators;
+        });
     }
 
     /** 单个创作者详情（含作品列表）。后端：GET /mobile/creators/detail?key=... */
     public CreatorDetail getCreatorDetail(String key) throws Exception {
-        Uri.Builder builder = Uri.parse(baseUrl + "/mobile/creators/detail").buildUpon();
-        builder.appendQueryParameter("key", key == null ? "" : key);
-        JSONObject json = getJsonObject(builder.build().toString().substring(baseUrl.length()));
-        return CreatorDetail.fromJson(json);
+        return retrying(() -> {
+            Uri.Builder builder = Uri.parse(baseUrl + "/mobile/creators/detail").buildUpon();
+            builder.appendQueryParameter("key", key == null ? "" : key);
+            JSONObject json = getJsonObject(builder.build().toString().substring(baseUrl.length()));
+            return CreatorDetail.fromJson(json);
+        });
     }
 
     private HttpURLConnection open(String path, String method, boolean auth) throws Exception {
@@ -165,9 +184,11 @@ public class ApiClient {
         int code = conn.getResponseCode();
         InputStream stream = code >= 200 && code < 300 ? conn.getInputStream() : conn.getErrorStream();
         StringBuilder builder = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
-            String line;
-            while ((line = reader.readLine()) != null) builder.append(line);
+        if (stream != null) {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) builder.append(line);
+            }
         }
         if (code < 200 || code >= 300) {
             String message = builder.toString();
@@ -176,8 +197,34 @@ public class ApiClient {
                 message = json.optString("detail", message);
             } catch (Exception ignored) {
             }
+            if (code == 401) {
+                throw new UnauthorizedException(message.length() == 0 ? "登录已过期，请重新登录" : message);
+            }
             throw new RuntimeException(message.length() == 0 ? "HTTP " + code : message);
         }
         return builder.toString();
+    }
+
+    private <T> T retrying(ThrowingSupplier<T> supplier) throws Exception {
+        Exception last = null;
+        long[] delaysMs = {200L, 600L};
+        for (int attempt = 0; attempt <= delaysMs.length; attempt++) {
+            try {
+                return supplier.get();
+            } catch (Exception e) {
+                if (!isRetryableNetworkError(e) || attempt == delaysMs.length) {
+                    throw e;
+                }
+                last = e;
+                Thread.sleep(delaysMs[attempt]);
+            }
+        }
+        throw last == null ? new RuntimeException("请求失败") : last;
+    }
+
+    private boolean isRetryableNetworkError(Exception error) {
+        return error instanceof SocketTimeoutException
+            || error instanceof ConnectException
+            || error instanceof UnknownHostException;
     }
 }

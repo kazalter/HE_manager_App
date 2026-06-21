@@ -27,6 +27,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.disk.DiskCache
@@ -305,8 +306,7 @@ internal fun LibraryScreenV2(
     // sourceFilter / sortFilter 来自 HE OP filter sheet 新增的两个分区。
     // sourceFilter 走客户端筛（MediaItem.sourceSite 字段，来自 backend Media.source_site）：
     //   "all" → 不筛；"local" → sourceSite==null；其它 → sourceSite 精确匹配 ("x" / "wnacg" / "asmr" / "bd2")
-    // sortFilter 映射后端 /mobile/media?sort=...：added→date / opened→opened /
-    //   rating→rating / name→name；后端不识别会 fallback 到 date。
+    // sortFilter / search 在首轮全量拉取后走客户端即时筛排；手动刷新和 onResume 才重新请求后端。
     var sourceFilter by remember { mutableStateOf("all") }
     var sortFilter by remember { mutableStateOf("added") }
     var search by remember { mutableStateOf("") }
@@ -357,14 +357,19 @@ internal fun LibraryScreenV2(
     // Pending optimistic-deletes — keyed by media id so concurrent deletes don't collide.
     val pendingDeletes = remember { mutableStateMapOf<Int, Job>() }
     val snackbarHostState = remember { SnackbarHostState() }
+    var unauthorizedHandled by remember { mutableStateOf(false) }
     val visibleItems by remember {
         derivedStateOf {
-            allItems.filter { item ->
-                item.id !in pendingDeletes &&
-                    (mediaType.isBlank() || item.mediaType == mediaType) &&
-                    matchesStatusV2(item, statusFilter) &&
-                    matchesSource(item, sourceFilter)
-            }
+            sortMediaItems(
+                allItems.filter { item ->
+                    item.id !in pendingDeletes &&
+                        (mediaType.isBlank() || item.mediaType == mediaType) &&
+                        matchesStatusV2(item, statusFilter) &&
+                        matchesSource(item, sourceFilter) &&
+                        matchesSearch(item, search)
+                },
+                sortFilter
+            )
         }
     }
     val visibleGridRows by remember {
@@ -661,6 +666,7 @@ internal fun LibraryScreenV2(
         mediaType,
         statusFilter,
         search,
+        sortFilter,
         viewMode,
         renderedImageTileDp.roundToInt(),
         imageGalleryPinching,
@@ -724,27 +730,30 @@ internal fun LibraryScreenV2(
         if (mediaType != "image") imageGalleryNetworkAllowed.set(true)
     }
 
-    fun load(query: String = search) {
+    fun handleUnauthorized(error: Throwable): Boolean {
+        if (error !is ApiClient.UnauthorizedException) return false
+        if (!unauthorizedHandled) {
+            unauthorizedHandled = true
+            Toast.makeText(context, readableError(error), Toast.LENGTH_LONG).show()
+            onLogout()
+        }
+        return true
+    }
+
+    fun load() {
         val currentRequest = requestId + 1
         requestId = currentRequest
         loading = true
         error = null
-        val querySnapshot = query.trim()
-        val sortParam = when (sortFilter) {
-            "added" -> "date"
-            "opened" -> "opened"
-            "rating" -> "rating"
-            "name" -> "name"
-            else -> "date"
-        }
         scope.launch {
             val result = withContext(Dispatchers.IO) {
-                runCatching { ApiClient(serverUrl, token).getMedia("", querySnapshot, sortParam) }
+                runCatching { ApiClient(serverUrl, token).getMedia() }
             }
             if (requestId != currentRequest) return@launch
             loading = false
             result.onSuccess { allItems = it }
             result.onFailure {
+                if (handleUnauthorized(it)) return@onFailure
                 // error state 已经走 ErrorPanelV2，不再额外弹 Toast 避免重复
                 error = readableError(it)
             }
@@ -774,6 +783,7 @@ internal fun LibraryScreenV2(
                         allItems = allItems.map {
                             if (it.id == item.id) it.also { it.favorite = !target } else it
                         }
+                        if (handleUnauthorized(it)) return@onFailure
                         snackbarHostState.showSnackbar(
                             message = "收藏失败: ${readableError(it)}",
                             duration = SnackbarDuration.Short
@@ -808,6 +818,7 @@ internal fun LibraryScreenV2(
                     }
                     outcome.onFailure {
                         pendingDeletes.remove(item.id)
+                        if (handleUnauthorized(it)) return@onFailure
                         snackbarHostState.showSnackbar(
                             message = "删除失败: ${readableError(it)}",
                             duration = SnackbarDuration.Short
@@ -819,16 +830,15 @@ internal fun LibraryScreenV2(
         }
     }
 
-    LaunchedEffect(serverUrl, token, search, sortFilter) {
-        delay(if (search.isBlank()) 0L else 280L)
-        load(search)
+    LaunchedEffect(serverUrl, token) {
+        load()
     }
 
     // Activity 重回前台时刷新媒体库；首次进入由上方 LaunchedEffect 负责初次加载，跳过避免重复。
     var hasSeenFirstResume by remember { mutableStateOf(false) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         if (hasSeenFirstResume) {
-            load(search)
+            load()
         } else {
             hasSeenFirstResume = true
         }
@@ -865,7 +875,7 @@ internal fun LibraryScreenV2(
                 },
                 onRefresh = {
                     scope.launch { drawerState.close() }
-                    load(search)
+                    load()
                 },
                 onSettings = {
                     scope.launch { drawerState.close() }
@@ -1005,7 +1015,7 @@ internal fun LibraryScreenV2(
                                     galleryMode = true,
                                     onViewModeSelected = { viewMode = it },
                                     onMenu = { scope.launch { drawerState.open() } },
-                                    onRefresh = { load(search) }
+                                    onRefresh = { load() }
                                 )
                             }
                             Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
@@ -1026,7 +1036,7 @@ internal fun LibraryScreenV2(
                                     ErrorPanelV2(
                                         error = error ?: "",
                                         loading = loading,
-                                        onRetry = { load(search) }
+                                        onRetry = { load() }
                                     )
                                 }
                             }
@@ -1080,8 +1090,8 @@ internal fun LibraryScreenV2(
                                         onOpenFilters = { filterSheetOpen = true },
                                         onViewModeSelected = { viewMode = it },
                                         onMenu = { scope.launch { drawerState.open() } },
-                                        onRefresh = { load(search) },
-                                        onRetry = { load(search) },
+                                        onRefresh = { load() },
+                                        onRetry = { load() },
                                         onRecycler = { imageGalleryRecyclerView = it },
                                         onBackTopVisible = { visible ->
                                             imageGalleryBackTopVisible = visible
@@ -1177,7 +1187,7 @@ internal fun LibraryScreenV2(
                             galleryMode = false,
                             onViewModeSelected = { viewMode = it },
                             onMenu = { scope.launch { drawerState.open() } },
-                            onRefresh = { load(search) }
+                            onRefresh = { load() }
                         )
                     }
                     if (showHero) {
@@ -1224,7 +1234,7 @@ internal fun LibraryScreenV2(
                             enter = fadeIn(tween(180)) + expandVertically(),
                             exit = fadeOut(tween(160)) + shrinkVertically()
                         ) {
-                            ErrorPanelV2(error = error ?: "", loading = loading, onRetry = { load(search) })
+                            ErrorPanelV2(error = error ?: "", loading = loading, onRetry = { load() })
                         }
                     }
                     item {
@@ -1360,6 +1370,7 @@ internal fun LibraryScreenV2(
                         token = token,
                         item = sheetItem,
                         onDismiss = { tagSheetItem = null },
+                        onUnauthorized = { error -> handleUnauthorized(error) },
                         onTagAdded = { fresh ->
                             allItems = allItems.map { if (it.id == fresh.id) fresh else it }
                             tagSheetItem = fresh

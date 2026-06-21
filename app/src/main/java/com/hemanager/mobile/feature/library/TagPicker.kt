@@ -238,6 +238,7 @@ internal fun TagPickerSheetV2(
     token: String,
     item: MediaItem,
     onDismiss: () -> Unit,
+    onUnauthorized: (Throwable) -> Boolean,
     onTagAdded: (MediaItem) -> Unit
 ) {
     val context = LocalContext.current
@@ -255,6 +256,7 @@ internal fun TagPickerSheetV2(
         loadingTags = false
         result.onSuccess { allTags = it }
         result.onFailure {
+            if (onUnauthorized(it)) return@onFailure
             context.toastError("标签加载失败", readableError(it))
         }
     }
@@ -282,6 +284,7 @@ internal fun TagPickerSheetV2(
                 }
             }
             result.onFailure {
+                if (onUnauthorized(it)) return@onFailure
                 context.toastError("添加失败", readableError(it))
             }
         }

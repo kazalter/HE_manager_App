@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -86,6 +87,9 @@ fun YellowCTA(
                 fontWeight = FontWeight.Bold,
                 fontSize = m.fontSize,
                 letterSpacing = 1.5.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Clip,
+                softWrap = false,
             )
         }
     }
@@ -134,6 +138,9 @@ fun GhostCta(
                 fontWeight = FontWeight.Bold,
                 fontSize = m.fontSize,
                 letterSpacing = 1.5.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Clip,
+                softWrap = false,
             )
         }
     }
@@ -205,8 +212,8 @@ fun IconBtn4(
     contentDescription: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    diameter: Dp = 36.dp,
-    iconSize: Dp = 16.dp,
+    diameter: Dp = 40.dp,
+    iconSize: Dp = 17.dp,
     tint: Color = HeColors.OpWhite,
 ) {
     Box(

@@ -34,7 +34,6 @@ import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.CircularProgressIndicator
@@ -78,7 +77,6 @@ import com.hemanager.mobile.ui.op.AngularPanel
 import com.hemanager.mobile.ui.op.CodeChip
 import com.hemanager.mobile.ui.op.CtaSize
 import com.hemanager.mobile.ui.op.Diamond
-import com.hemanager.mobile.ui.op.GhostCta
 import com.hemanager.mobile.ui.op.IconBtn4
 import com.hemanager.mobile.ui.op.OpAvatar
 import com.hemanager.mobile.ui.op.OpTitle
@@ -101,6 +99,7 @@ internal fun CreatorsScreen(
     serverUrl: String,
     token: String,
     onBack: () -> Unit,
+    onLogout: () -> Unit,
 ) {
     val context = LocalContext.current
     val mainActivity = context as? MainActivity
@@ -122,6 +121,17 @@ internal fun CreatorsScreen(
     var selectedCreatorKey by rememberSaveable { mutableStateOf<String?>(null) }
     var detail by remember { mutableStateOf<CreatorDetail?>(null) }
     var detailLoading by remember { mutableStateOf(false) }
+    var unauthorizedHandled by remember { mutableStateOf(false) }
+
+    fun handleUnauthorized(error: Throwable): Boolean {
+        if (error !is ApiClient.UnauthorizedException) return false
+        if (!unauthorizedHandled) {
+            unauthorizedHandled = true
+            Toast.makeText(context, readableError(error), Toast.LENGTH_LONG).show()
+            onLogout()
+        }
+        return true
+    }
 
     fun loadList() {
         val rid = listRequest + 1
@@ -135,7 +145,10 @@ internal fun CreatorsScreen(
             if (listRequest != rid) return@launch
             loading = false
             r.onSuccess { creators = it }
-            r.onFailure { error = readableError(it) }
+            r.onFailure {
+                if (handleUnauthorized(it)) return@onFailure
+                error = readableError(it)
+            }
         }
     }
 
@@ -152,6 +165,7 @@ internal fun CreatorsScreen(
             detailLoading = false
             r.onSuccess { detail = it }
             r.onFailure {
+                if (handleUnauthorized(it)) return@onFailure
                 Toast.makeText(context, readableError(it), Toast.LENGTH_LONG).show()
             }
         }
@@ -628,7 +642,7 @@ private fun CreatorDetailView(
                             fontFamily = NotoSansSC,
                             fontWeight = FontWeight.Black,
                             fontSize = 22.sp,
-                            letterSpacing = (-0.5).sp,
+                            letterSpacing = 0.sp,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -690,12 +704,6 @@ private fun CreatorDetailView(
                         text = "BROWSE · 浏览",
                         onClick = { mediaList.firstOrNull()?.let(onMediaClick) },
                         icon = Icons.Default.PlayArrow,
-                        size = CtaSize.Small,
-                    )
-                    GhostCta(
-                        text = "STAR",
-                        onClick = { /* TODO: 收藏整个 creator — 后端尚无接口 */ },
-                        icon = Icons.Default.Bookmark,
                         size = CtaSize.Small,
                     )
                 }
