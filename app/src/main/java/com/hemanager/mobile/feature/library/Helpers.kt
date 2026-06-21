@@ -3,10 +3,10 @@ package com.hemanager.mobile.feature.library
 // Library 模块复用的纯函数 / 半纯函数集合：颜色映射、文本格式化、URL 拼装等。
 // 这些函数大多没有 state，可以独立测试。
 //
-// 命名约定：
-//   - 不带 V2 后缀的（filterAccent/typeAccent/progressColor 等）：通用版本
-//   - 带 V2 后缀的（statusAccentV2/progressColorV2 等）：V2 重写时新增的语义版本
-// 未来可考虑合并语义同步去掉 V2 后缀。
+// 命名约定：带 V2 后缀的函数是 HE OP UI 重写时新增的版本。
+// 旧的无后缀版本中仅有语义重复的已清理（summary/meta/progressText/progressColor/typeLabel）。
+// filterAccent/typeAccent/countForFilter 是按 mediaType 维度的分类颜色/计数，
+// 与按 viewStatus 维度的 V2 系列不重叠，保留。后续有空可统一去掉 V2 后缀。
 
 import com.hemanager.mobile.ApiClient
 import com.hemanager.mobile.MangaActivity
@@ -395,42 +395,7 @@ internal fun countForFilter(items: List<MediaItem>, value: String): Int {
     return if (value.isBlank()) items.size else items.count { it.mediaType == value }
 }
 
-internal fun summary(items: List<MediaItem>): String {
-    val videos = items.count { it.mediaType == "video" }
-    val manga = items.count { it.mediaType == "manga" }
-    val images = items.count { it.mediaType == "image" }
-    return listOf(
-        "${items.size}个条目",
-        if (videos > 0) "${videos}视频" else "",
-        if (manga > 0) "${manga}漫画" else "",
-        if (images > 0) "${images}图片" else ""
-    ).filter { it.isNotBlank() }.joinToString(" / ")
-}
 
-internal fun meta(item: MediaItem): String {
-    return listOf(
-        typeLabel(item.mediaType),
-        item.extension?.takeIf { it.isNotBlank() }?.uppercase(Locale.ROOT) ?: "",
-        item.duration.takeIf { it > 0 }?.let { formatDuration(it) } ?: "",
-        item.pageCount.takeIf { it > 0 }?.let { "${it}页" } ?: "",
-        if (item.favorite) "收藏" else "",
-        item.rating.takeIf { it > 0 }?.let { "${it}星" } ?: ""
-    ).filter { it.isNotBlank() }.joinToString(" / ")
-}
-
-internal fun progressText(item: MediaItem): String {
-    if (item.viewStatus == "viewed") return "已看完"
-    if (item.viewStatus == "viewing") {
-        if (item.mediaType == "manga" && item.pageCount > 0) {
-            return "第 ${minOf(item.progress + 1, item.pageCount)} / ${item.pageCount} 页"
-        }
-        if (item.mediaType == "video" && item.progress > 0) {
-            return "看到 ${formatDuration(item.progress)}"
-        }
-        return "正在看"
-    }
-    return "未观看"
-}
 
 internal fun progressFraction(item: MediaItem): Float? {
     if (item.viewStatus == "viewed") return 1f
@@ -465,15 +430,7 @@ internal fun typeAccent(type: String?): Color {
     }
 }
 
-@Composable
-internal fun progressColor(item: MediaItem): Color {
-    return when {
-        item.missing -> Color(0xFFFF8FA3)
-        item.viewStatus == "viewed" -> MaterialTheme.colorScheme.secondary
-        item.viewStatus == "viewing" -> MaterialTheme.colorScheme.primary
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
-}
+
 
 internal fun readableError(error: Throwable): String {
     if (error is ApiClient.UnauthorizedException) return "登录已过期，请重新登录"
@@ -489,15 +446,7 @@ internal fun readableError(error: Throwable): String {
     }
 }
 
-internal fun typeLabel(type: String?): String {
-    return when (type) {
-        "video" -> "视频"
-        "manga" -> "漫画"
-        "image" -> "图片"
-        "audio" -> "音频"
-        else -> "媒体"
-    }
-}
+
 
 /**
  * 来源筛选匹配。
