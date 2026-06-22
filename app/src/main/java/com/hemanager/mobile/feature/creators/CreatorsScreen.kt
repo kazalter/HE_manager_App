@@ -66,7 +66,6 @@ import coil.compose.AsyncImage
 import com.hemanager.mobile.ApiClient
 import com.hemanager.mobile.Creator
 import com.hemanager.mobile.CreatorDetail
-import com.hemanager.mobile.MainActivity
 import com.hemanager.mobile.MediaItem
 import com.hemanager.mobile.feature.library.FilterOption
 import com.hemanager.mobile.feature.library.coverUrl
@@ -85,6 +84,7 @@ import com.hemanager.mobile.ui.op.StatNumber
 import com.hemanager.mobile.ui.op.StatusStripe
 import com.hemanager.mobile.ui.op.YellowCTA
 import com.hemanager.mobile.ui.op.YellowCornerSeal
+import com.hemanager.mobile.ui.host.LocalHostUiController
 import com.hemanager.mobile.ui.theme.CutCornerShape
 import com.hemanager.mobile.ui.theme.GeistMono
 import com.hemanager.mobile.ui.theme.HeColors
@@ -102,7 +102,7 @@ internal fun CreatorsScreen(
     onLogout: () -> Unit,
 ) {
     val context = LocalContext.current
-    val mainActivity = context as? MainActivity
+    val hostUiController = LocalHostUiController.current
     val scope = rememberCoroutineScope()
     val typeFilters = remember {
         listOf(
@@ -172,12 +172,10 @@ internal fun CreatorsScreen(
     }
 
     // 隐藏状态栏：本屏幕独享沉浸感
-    DisposableEffect(Unit) {
-        mainActivity?.creatorsScreenActive = true
-        mainActivity?.setStatusBarHidden(true)
+    DisposableEffect(hostUiController) {
+        hostUiController.setCreatorsScreenActive(true)
         onDispose {
-            mainActivity?.creatorsScreenActive = false
-            mainActivity?.setStatusBarHidden(false)
+            hostUiController.setCreatorsScreenActive(false)
         }
     }
 

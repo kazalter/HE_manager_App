@@ -365,8 +365,7 @@ class PlayerViewModel(
         val media = _uiState.value.media ?: return
         val newStatus = if (media.viewStatus == "viewed") "viewing" else "viewed"
         repository.setViewStatus(media.id, newStatus)
-        media.viewStatus = newStatus
-        _uiState.update { it.copy(media = media) }
+        _uiState.update { it.copy(media = media.copy(viewStatus = newStatus)) }
     }
 
     /**

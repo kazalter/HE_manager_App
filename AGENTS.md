@@ -51,6 +51,9 @@
 - **安卓 release**（性能/体感检查点，~2min）：`android_release.bat`（`installRelease`，非 debuggable，
   debug 签名可覆盖装，跳 lint 提速）。**判断启动卡/滑动顺必须用 release，debug 不代表性能。**
   Baseline Profile 首启后台装，第二次冷启才是优化后体感。
+- **ADB 手测设备**：用户指定使用 `16416` 端口的模拟器设备。之后每次完成安卓端改动并构建通过后，
+  优先用这个模拟器做 ADB 安装、启动和基础冒烟测试；常见 serial 形态可能是 `127.0.0.1:16416`
+  或 `localhost:16416`，以 `adb devices` 实际输出为准。
 - 设备：两台连着，脚本只认 `f…` 那台、排除 `hbl…`（`ANDROID_SERIAL` 钉死，防双装）。
 - 安卓构建验证：`gradlew.bat :app:assembleDebug -q`（在项目根目录运行，无输出=成功）。
 

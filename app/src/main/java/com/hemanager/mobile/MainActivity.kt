@@ -211,10 +211,13 @@ import com.hemanager.mobile.data.image.isCoverInMemory
 import com.hemanager.mobile.feature.creators.CreatorsScreen
 import com.hemanager.mobile.feature.library.LibraryScreenV2
 import com.hemanager.mobile.feature.login.LoginScreen
+import com.hemanager.mobile.feature.settings.SettingsScreen
 import com.hemanager.mobile.ui.components.BrandMark
 import com.hemanager.mobile.ui.components.GlassPanel
 import com.hemanager.mobile.ui.components.LocalCoverImageLoader
 import com.hemanager.mobile.ui.components.ModernTextField
+import com.hemanager.mobile.ui.host.HostUiController
+import com.hemanager.mobile.ui.host.LocalHostUiController
 import com.hemanager.mobile.ui.theme.AppBackgroundBrush
 import com.hemanager.mobile.ui.theme.HeColorScheme
 import com.hemanager.mobile.ui.util.toastComingSoon
@@ -232,7 +235,7 @@ import kotlin.math.floor
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
-class MainActivity : ComponentActivity() {
+class MainActivity : ComponentActivity(), HostUiController {
     private val coverImageLoader: ImageLoader by lazy {
         ImageLoader.Builder(this)
             .memoryCachePolicy(CachePolicy.ENABLED)
@@ -246,7 +249,7 @@ class MainActivity : ComponentActivity() {
             .diskCache {
                 DiskCache.Builder()
                     .directory(cacheDir.resolve("coil_cover_cache"))
-                    .maxSizeBytes(256L * 1024L * 1024L)
+                    .maxSizeBytes(HePrefs(this).coverCacheSizeMb.toLong() * 1024L * 1024L)
                     .build()
             }
             .build()
@@ -255,21 +258,21 @@ class MainActivity : ComponentActivity() {
     // 颜色统一在 ui.theme.HeColors / HeColorScheme 中维护
     private val scheme = HeColorScheme
 
-    // -- 跨模块共享的 Activity 级状态（feature/library、feature/creators 等通过
-    //    `LocalContext.current as? MainActivity` 拿到并读写）。
+    /** 是否当前在「创作者」全屏页面上。CreatorsScreen 通过 HostUiController 控制。 */
+    @Volatile
+    private var creatorsScreenActive: Boolean = false
 
-    /** 是否当前在「创作者」全屏页面上。CreatorsScreen 用 DisposableEffect 控制，决定状态栏显隐。 */
-    internal var creatorsScreenActive: Boolean = false
+    /** 左边缘滑动手势触发时调用的回调；由 LibraryScreen 注册（指向 drawerState.open()）。 */
+    @Volatile
+    private var edgeDrawerOpenRequester: (() -> Unit)? = null
 
-    /** 左边缘滑动手势触发时调用的回调；由 LibraryScreen 在挂载时注册（指向 drawerState.open()）。 */
-    internal var edgeDrawerOpenRequester: (() -> Unit)? = null
+    /** 是否启用左边缘抽屉手势。LibraryScreen 挂载时设 true，图廊全屏时设 false。 */
+    @Volatile
+    private var edgeDrawerGestureEnabled: Boolean = false
 
-    /** 是否启用左边缘抽屉手势。LibraryScreen 挂载时设 true，卸载或图廊全屏时设 false。 */
-    internal var edgeDrawerGestureEnabled: Boolean = false
-
-    /** 图廊原生 RecyclerView 上 pinch 缩放正在进行中。Gallery 模块 OnItemTouchListener 设；
-     *  dispatchTouchEvent 读到为 true 时主动放弃边缘手势探测，避免双指误判。 */
-    internal var imageGalleryNativePinching: Boolean = false
+    /** 图廊原生 RecyclerView 上 pinch 缩放正在进行中。 */
+    @Volatile
+    private var imageGalleryNativePinching: Boolean = false
 
     /** 图廊每个 RecyclerView 注册的 pinch OnItemTouchListener，WeakHashMap 防止
      *  RecyclerView 被销毁后我们还持有强引用造成内存泄漏。 */
@@ -298,7 +301,10 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            CompositionLocalProvider(LocalCoverImageLoader provides coverImageLoader) {
+            CompositionLocalProvider(
+                LocalCoverImageLoader provides coverImageLoader,
+                LocalHostUiController provides this,
+            ) {
                 MaterialTheme(colorScheme = scheme) {
                     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                         HeManagerApp()
@@ -340,7 +346,17 @@ class MainActivity : ComponentActivity() {
         val openDistancePx = 32f * density
         val touchSlopPx = ViewConfiguration.get(this).scaledTouchSlop.toFloat()
 
-        when (event.actionMasked) {
+        val action = event.actionMasked
+        if (edgeDrawerOpened) {
+            if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL || action == MotionEvent.ACTION_DOWN) {
+                edgeDrawerOpened = false
+            }
+            if (action != MotionEvent.ACTION_DOWN) {
+                return true
+            }
+        }
+
+        when (action) {
             MotionEvent.ACTION_DOWN -> {
                 edgeDrawerTracking = event.x <= edgeWidthPx
                 edgeDrawerOpened = false
@@ -363,23 +379,47 @@ class MainActivity : ComponentActivity() {
                         edgeDrawerTracking = false
                         edgeDrawerOpened = true
                         edgeDrawerOpenRequester?.invoke()
+
+                        // Send ACTION_CANCEL to child views to cancel active gestures cleanly
+                        val cancelEvent = MotionEvent.obtain(
+                            event.downTime,
+                            event.eventTime,
+                            MotionEvent.ACTION_CANCEL,
+                            event.x,
+                            event.y,
+                            event.metaState
+                        )
+                        super.dispatchTouchEvent(cancelEvent)
+                        cancelEvent.recycle()
+
                         return true
                     }
                 }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                val consume = edgeDrawerOpened
                 edgeDrawerTracking = false
                 edgeDrawerOpened = false
-                if (consume) return true
             }
         }
 
         return super.dispatchTouchEvent(event)
     }
 
+    override fun setCreatorsScreenActive(active: Boolean) {
+        creatorsScreenActive = active
+        setStatusBarHidden(active)
+    }
+
+    override fun setEdgeDrawerOpenRequester(requester: (() -> Unit)?) {
+        edgeDrawerOpenRequester = requester
+    }
+
+    override fun setEdgeDrawerGestureEnabled(enabled: Boolean) {
+        edgeDrawerGestureEnabled = enabled
+    }
+
     /** 显示或隐藏顶部状态栏（仅本 Activity 的 window）。隐藏时支持顶部下滑短暂显示。 */
-    internal fun setStatusBarHidden(hidden: Boolean) {
+    private fun setStatusBarHidden(hidden: Boolean) {
         val controller = WindowInsetsControllerCompat(window, window.decorView)
         if (hidden) {
             controller.systemBarsBehavior =
@@ -426,7 +466,7 @@ class MainActivity : ComponentActivity() {
     //   onPinchStart(focal): 第二指落下，传入两指中点（RecyclerView 局部坐标）
     //   onPinch(scale, focal): 持续两指移动；scale = currentDistance / startDistance，已 clamp 到 [0.45, 2.40]
     //   onPinchEnd(): 任一指抬起或取消
-    internal fun setImageGalleryPinchTouchListener(
+    override fun setImageGalleryPinchTouchListener(
         recyclerView: RecyclerView,
         enabled: Boolean,
         onPinchStart: (Offset) -> Unit,
@@ -551,6 +591,9 @@ class MainActivity : ComponentActivity() {
             var showCreators by androidx.compose.runtime.saveable.rememberSaveable {
                 mutableStateOf(false)
             }
+            var showSettings by androidx.compose.runtime.saveable.rememberSaveable {
+                mutableStateOf(false)
+            }
             if (showCreators) {
                 CreatorsScreen(
                     serverUrl = serverUrl,
@@ -562,11 +605,30 @@ class MainActivity : ComponentActivity() {
                         token = ""
                     }
                 )
+            } else if (showSettings) {
+                SettingsScreen(
+                    serverUrl = serverUrl,
+                    serverHistory = serverHistory,
+                    onBack = { showSettings = false },
+                    onSwitchServer = { nextServer ->
+                        prefs.serverUrl = nextServer
+                        prefs.clearToken()
+                        serverUrl = nextServer
+                        token = ""
+                        showSettings = false
+                    },
+                    onLogout = {
+                        prefs.clearToken()
+                        token = ""
+                        showSettings = false
+                    }
+                )
             } else {
                 LibraryScreenV2(
                     serverUrl = serverUrl,
                     token = token,
                     onOpenCreators = { showCreators = true },
+                    onOpenSettings = { showSettings = true },
                     onLogout = {
                         prefs.clearToken()
                         token = ""

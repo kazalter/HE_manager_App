@@ -77,6 +77,16 @@ class HePrefs(context: Context) {
             prefs.edit().putInt(KEY_GALLERY_COLUMNS, value).apply()
         }
 
+    /** 封面磁盘缓存上限。当前 ImageLoader 会在下次 Activity/进程重建时读取该值。 */
+    var coverCacheSizeMb: Int
+        get() = prefs.getInt(KEY_COVER_CACHE_SIZE_MB, DEFAULT_COVER_CACHE_SIZE_MB)
+            .coerceIn(MIN_COVER_CACHE_SIZE_MB, MAX_COVER_CACHE_SIZE_MB)
+        set(value) {
+            prefs.edit()
+                .putInt(KEY_COVER_CACHE_SIZE_MB, value.coerceIn(MIN_COVER_CACHE_SIZE_MB, MAX_COVER_CACHE_SIZE_MB))
+                .apply()
+        }
+
     /** [galleryColumns] 是否已显式写入过（用于一次性迁移判断）。 */
     val hasGalleryColumns: Boolean
         get() = prefs.contains(KEY_GALLERY_COLUMNS)
@@ -142,9 +152,13 @@ class HePrefs(context: Context) {
         private const val KEY_SERVER_HISTORY = "server_history"
         private const val KEY_GALLERY_TILE_DP = "mobile_image_gallery_tile_dp"
         private const val KEY_GALLERY_COLUMNS = "mobile_image_gallery_columns"
+        private const val KEY_COVER_CACHE_SIZE_MB = "cover_cache_size_mb"
         private const val MAX_SERVER_HISTORY = 6
 
         const val DEFAULT_GALLERY_TILE_DP = 78f
         const val DEFAULT_GALLERY_COLUMNS = 5
+        const val DEFAULT_COVER_CACHE_SIZE_MB = 256
+        const val MIN_COVER_CACHE_SIZE_MB = 128
+        const val MAX_COVER_CACHE_SIZE_MB = 512
     }
 }

@@ -296,11 +296,14 @@ internal fun LibraryScreenV2(
     serverUrl: String,
     token: String,
     onOpenCreators: () -> Unit,
+    onOpenSettings: () -> Unit,
     onLogout: () -> Unit
 ) {
     val context = LocalContext.current
     val coverImageLoader = LocalCoverImageLoader.current
+    val hostUiController = com.hemanager.mobile.ui.host.LocalHostUiController.current
     val scope = rememberCoroutineScope()
+    val density = androidx.compose.ui.platform.LocalDensity.current
     var mediaType by remember { mutableStateOf("") }
     var statusFilter by remember { mutableStateOf("") }
     // sourceFilter / sortFilter 来自 HE OP filter sheet 新增的两个分区。
@@ -335,23 +338,64 @@ internal fun LibraryScreenV2(
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     var filterSheetOpen by remember { mutableStateOf(false) }
 
-    // 接 MainActivity 的左边缘滑动兜底手势：普通 Compose 列表可以让
-    // ModalNavigationDrawer 自己处理手势；图片图廊是 AndroidView/RecyclerView，
-    // 会吃掉 Compose 的抽屉拖动，所以图廊分支用下面的 Compose edge bridge，
-    // 并在 mediaType == "image" 时关闭 Activity 级“阈值触发打开”模型。
-    val mainActivity = context as? com.hemanager.mobile.MainActivity
-    DisposableEffect(mainActivity, drawerState, scope) {
-        mainActivity?.edgeDrawerOpenRequester = {
-            scope.launch { drawerState.open() }
-        }
-        mainActivity?.edgeDrawerGestureEnabled = true
-        onDispose {
-            mainActivity?.edgeDrawerGestureEnabled = false
-            mainActivity?.edgeDrawerOpenRequester = null
+    // --- Drawer snap safety-net ---
+    // Activity dispatchTouchEvent edge gesture and the Compose ModalNavigationDrawer
+    // AnchoredDraggable both track the same touch events. In some release-timing
+    // scenarios the AnchoredDraggable settle never fires, leaving the drawer visually
+    // stuck at a mid-position. This monitors the offset: if animation has stopped
+    // and the offset is not at the settled Closed or Open positions, force-snap it.
+    LaunchedEffect(drawerState) {
+        snapshotFlow {
+            Triple(
+                drawerState.currentOffset,
+                drawerState.isAnimationRunning,
+                drawerState.currentValue
+            )
+        }.collectLatest { (offset, animating, currentValue) ->
+            if (animating || offset.isNaN()) return@collectLatest
+            
+            val drawerWidthPx = with(density) { 320.dp.toPx() }
+            val expectedOffset = if (currentValue == DrawerValue.Closed) -drawerWidthPx else 0f
+            val isStuck = kotlin.math.abs(offset - expectedOffset) > 1f
+            
+            if (isStuck) {
+                delay(300)
+                // Re-check after delay to ensure it's still stuck and not animating
+                val postOffset = drawerState.currentOffset
+                val postAnimating = drawerState.isAnimationRunning
+                val postValue = drawerState.currentValue
+                if (!postAnimating && !postOffset.isNaN()) {
+                    val postExpectedOffset = if (postValue == DrawerValue.Closed) -drawerWidthPx else 0f
+                    if (kotlin.math.abs(postOffset - postExpectedOffset) > 1f) {
+                        scope.launch {
+                            // Snap to whichever side it is closer to
+                            if (postOffset > -drawerWidthPx / 2f) {
+                                drawerState.open()
+                            } else {
+                                drawerState.close()
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
-    LaunchedEffect(mainActivity, mediaType) {
-        mainActivity?.edgeDrawerGestureEnabled = mediaType != "image"
+
+    // Edge drawer gesture bridge: for Compose lists the ModalNavigationDrawer handles
+    // its own gestures; for the image gallery (AndroidView/RecyclerView) the Activity-
+    // level dispatchTouchEvent edge gesture fires drawerState.open() as a fallback.
+    DisposableEffect(hostUiController, drawerState, scope) {
+        hostUiController.setEdgeDrawerOpenRequester {
+            scope.launch { drawerState.open() }
+        }
+        hostUiController.setEdgeDrawerGestureEnabled(true)
+        onDispose {
+            hostUiController.setEdgeDrawerGestureEnabled(false)
+            hostUiController.setEdgeDrawerOpenRequester(null)
+        }
+    }
+    LaunchedEffect(hostUiController, mediaType) {
+        hostUiController.setEdgeDrawerGestureEnabled(mediaType == "image")
     }
     var tagSheetItem by remember { mutableStateOf<MediaItem?>(null) }
     // Pending optimistic-deletes — keyed by media id so concurrent deletes don't collide.
@@ -377,7 +421,6 @@ internal fun LibraryScreenV2(
     }
     val listState = rememberLazyListState()
     val imageGridState = rememberLazyGridState()
-    val density = LocalDensity.current
     var coverPrefetchJob by remember { mutableStateOf<Job?>(null) }
     val coverPrefetchDisposables = remember { mutableListOf<coil.request.Disposable>() }
     var visibleCoverWarmupJob by remember { mutableStateOf<Job?>(null) }
@@ -769,7 +812,7 @@ internal fun LibraryScreenV2(
             "favorite" -> {
                 val target = !item.favorite
                 allItems = allItems.map {
-                    if (it.id == item.id) it.also { it.favorite = target } else it
+                    if (it.id == item.id) it.copy(favorite = target) else it
                 }
                 scope.launch {
                     val result = withContext(Dispatchers.IO) {
@@ -781,7 +824,7 @@ internal fun LibraryScreenV2(
                     result.onFailure {
                         // Roll back optimistic flip and surface the error.
                         allItems = allItems.map {
-                            if (it.id == item.id) it.also { it.favorite = !target } else it
+                            if (it.id == item.id) it.copy(favorite = !target) else it
                         }
                         if (handleUnauthorized(it)) return@onFailure
                         snackbarHostState.showSnackbar(
@@ -879,7 +922,7 @@ internal fun LibraryScreenV2(
                 },
                 onSettings = {
                     scope.launch { drawerState.close() }
-                    context.toastComingSoon("设置")
+                    onOpenSettings()
                 },
                 onOpenCreators = {
                     scope.launch { drawerState.close() }
