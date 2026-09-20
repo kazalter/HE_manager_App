@@ -31,6 +31,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.Add
@@ -63,7 +65,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -224,6 +228,7 @@ internal fun SearchAndFilterPanelV2(
     onStatusSelected: (String) -> Unit,
     onOpenFilters: () -> Unit
 ) {
+    val focusManager = LocalFocusManager.current
     val selectedMediaLabel = filters.firstOrNull { it.value == selectedValue }?.label ?: "全部"
     val selectedStatusLabel = statusFilters.firstOrNull { it.value == selectedStatusValue }?.label ?: "全部"
     val activeCount = listOf(selectedValue, selectedStatusValue).count { it.isNotBlank() }
@@ -269,6 +274,13 @@ internal fun SearchAndFilterPanelV2(
                         fontSize = 14.sp,
                     ),
                     cursorBrush = androidx.compose.ui.graphics.SolidColor(com.hemanager.mobile.ui.theme.HeColors.Yellow),
+                    keyboardOptions = KeyboardOptions(
+                        autoCorrectEnabled = false,
+                        imeAction = ImeAction.Search,
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onSearch = { focusManager.clearFocus() },
+                    ),
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -655,4 +667,3 @@ private fun SortChipV2(
         )
     }
 }
-

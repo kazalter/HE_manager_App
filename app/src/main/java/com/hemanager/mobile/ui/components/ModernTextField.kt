@@ -1,12 +1,14 @@
 package com.hemanager.mobile.ui.components
 
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 
@@ -31,6 +33,10 @@ fun ModernTextField(
         shape = RoundedCornerShape(8.dp),
         label = { Text(label) },
         supportingText = support?.let { { Text(it) } },
+        keyboardOptions = KeyboardOptions(
+            autoCorrectEnabled = false,
+            keyboardType = if (password) KeyboardType.Password else KeyboardType.Text,
+        ),
         visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None
     )
 }
