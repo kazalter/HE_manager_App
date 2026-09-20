@@ -5,8 +5,9 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
-import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.LruCache;
 import android.view.Gravity;
 import android.view.GestureDetector;
@@ -27,10 +28,17 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -64,11 +72,50 @@ public class MangaActivity extends Activity {
     private static final int IMAGE_PREFETCH_MAX_IN_FLIGHT = 3;
     private static final float SCROLL_HIGH_QUALITY_ZOOM = 2.15f;
     private static final int SCROLL_MAX_DECODE_WIDTH = 3200;
+    /**
+     * 连续滚动模式下"常规质量"的解码宽度倍率。
+     *
+     * 原来是 2.0——每页都按屏宽两倍解码，1080p 手机上一张长条漫画页就是
+     * 2160×3000 的 RGB_565 位图（约 13MB），再叠加前后 8 页预取，几乎必然
+     * 把 LruCache 打穿并反复重解码。实际显示宽度只有屏宽，1.25 倍已经足够
+     * 覆盖轻微缩放；真正放大到 {@link #SCROLL_HIGH_QUALITY_ZOOM} 以上时，
+     * {@link #refreshVisibleContinuousPagesForZoom} 会把可见页按 3 倍重解一次。
+     */
+    private static final float SCROLL_BASE_DECODE_MULTIPLIER = 1.25f;
+    /** 本地图片缓存目录的容量上限，超出后按最后访问时间淘汰。 */
+    private static final long IMAGE_DISK_CACHE_BUDGET_BYTES = 512L * 1024L * 1024L;
+    /** 进度上报防抖窗口：连续翻页时只在停下来之后发一次 PATCH。 */
+    private static final long PROGRESS_SAVE_DEBOUNCE_MS = 900L;
+    /** 页高缓存单独放一个 prefs 文件，不再污染 he_manager 主配置。 */
+    private static final String PREFS_PAGE_SIZES = "he_manager_page_sizes";
+
     private final Set<Integer> prefetchInFlight = new HashSet<>();
-    private final Set<AsyncTask<?, ?, ?>> prefetchTasks = new HashSet<>();
+    private final Set<Future<?>> prefetchTasks = new HashSet<>();
     private final Map<Integer, Object> pageDownloadLocks = new ConcurrentHashMap<>();
     private final Map<Integer, Integer> bitmapDecodeWidths = new ConcurrentHashMap<>();
     private LruCache<Integer, Bitmap> bitmapCache;
+
+    /**
+     * 图片下载 / 解码线程池。
+     *
+     * 之前翻页模式用的是 {@code AsyncTask.execute()}，即 **全局串行** 执行器：
+     * 所有页面的下载排成一条队，还和进度上报、总页数请求共用同一条队列。
+     * 一页卡在 30 秒读超时，后面每一页和每一次进度保存都得等它。
+     * 换成独立线程池后各页并行，且与网络上报互不阻塞。
+     */
+    private final ExecutorService ioExecutor = Executors.newFixedThreadPool(3, runnable -> {
+        Thread thread = new Thread(runnable, "manga-io");
+        thread.setPriority(Thread.NORM_PRIORITY - 1);
+        return thread;
+    });
+    /** 进度上报单独一条线，保证不会被图片下载堵住。 */
+    private final ExecutorService netExecutor = Executors.newSingleThreadExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "manga-net");
+        thread.setPriority(Thread.NORM_PRIORITY - 1);
+        return thread;
+    });
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final Runnable progressSaveTask = () -> postProgressToServer(currentProgress());
 
     private FrameLayout root;
     private ViewPager2 pager;
@@ -287,6 +334,7 @@ public class MangaActivity extends Activity {
         root.addView(modePanel, panelParams);
 
         setContentView(root);
+        trimImageDiskCache();
         loadPageCount();
     }
 
@@ -308,30 +356,26 @@ public class MangaActivity extends Activity {
             renderReadingMode();
             return;
         }
-        new AsyncTask<Void, Void, JSONObject>() {
-            @Override
-            protected JSONObject doInBackground(Void... voids) {
-                JSONObject result = new JSONObject();
-                try {
-                    ApiClient client = new ApiClient(serverUrl, token);
-                    if (!restartFromBeginning) {
-                        JSONObject media = client.getJsonObject("/mobile/media/" + id);
-                        result.put("progress", Math.max(0, media.optInt("progress", page)));
-                    }
-                    JSONObject pages = client.getJsonObject("/mobile/manga/" + id + "/pages");
-                    result.put("total_pages", Math.max(1, pages.optInt("total_pages", 1)));
-                } catch (Exception e) {
-                    try {
-                        result.put("total_pages", 1);
-                        result.put("progress", page);
-                    } catch (Exception ignored) {
-                    }
+        final int fallbackPage = page;
+        ioExecutor.execute(() -> {
+            final JSONObject result = new JSONObject();
+            try {
+                ApiClient client = new ApiClient(serverUrl, token);
+                if (!restartFromBeginning) {
+                    JSONObject media = client.getJsonObject("/mobile/media/" + id);
+                    result.put("progress", Math.max(0, media.optInt("progress", fallbackPage)));
                 }
-                return result;
+                JSONObject pages = client.getJsonObject("/mobile/manga/" + id + "/pages");
+                result.put("total_pages", Math.max(1, pages.optInt("total_pages", 1)));
+            } catch (Exception e) {
+                try {
+                    result.put("total_pages", 1);
+                    result.put("progress", fallbackPage);
+                } catch (Exception ignored) {
+                }
             }
-
-            @Override
-            protected void onPostExecute(JSONObject result) {
+            mainHandler.post(() -> {
+                if (isFinishing() || isDestroyed()) return;
                 totalPages = Math.max(1, result.optInt("total_pages", 1));
                 if (!restartFromBeginning) {
                     page = Math.max(0, result.optInt("progress", page));
@@ -349,8 +393,8 @@ public class MangaActivity extends Activity {
                 if (restartFromBeginning) {
                     saveProgressToServer(true);
                 }
-            }
-        }.execute();
+            });
+        });
     }
 
     private String pageUrl(int pageIndex, boolean trackProgress) {
@@ -630,11 +674,14 @@ public class MangaActivity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
+        // 防抖中的那一次要立刻落盘，别等窗口过期。
+        mainHandler.removeCallbacks(progressSaveTask);
         saveProgressToServer(true);
     }
 
     @Override
     protected void onDestroy() {
+        mainHandler.removeCallbacks(progressSaveTask);
         if (pageIndicator != null) {
             pageIndicator.removeCallbacks(hideControls);
             pageIndicator.animate().cancel();
@@ -642,7 +689,7 @@ public class MangaActivity extends Activity {
         if (settingsButton != null) settingsButton.animate().cancel();
         if (modePanel != null) modePanel.animate().cancel();
         synchronized (prefetchTasks) {
-            for (AsyncTask<?, ?, ?> task : prefetchTasks) {
+            for (Future<?> task : prefetchTasks) {
                 task.cancel(true);
             }
             prefetchTasks.clear();
@@ -650,25 +697,82 @@ public class MangaActivity extends Activity {
         synchronized (prefetchInFlight) {
             prefetchInFlight.clear();
         }
+        ioExecutor.shutdownNow();
+        netExecutor.shutdown();
+        if (bitmapCache != null) bitmapCache.evictAll();
         super.onDestroy();
     }
 
+    /**
+     * 裁剪本地图片缓存。
+     *
+     * {@code viewer-images} 之前只写不删：看过的每一页都永久留在设备上，一个
+     * 大漫画库能轻松堆到几个 GB。启动时在后台按最后修改时间淘汰到
+     * {@link #IMAGE_DISK_CACHE_BUDGET_BYTES} 以内。
+     */
+    private void trimImageDiskCache() {
+        ioExecutor.execute(() -> {
+            try {
+                File dir = new File(getCacheDir(), "viewer-images");
+                File[] files = dir.listFiles();
+                if (files == null || files.length == 0) return;
+                long total = 0L;
+                List<File> candidates = new ArrayList<>(Arrays.asList(files));
+                for (File file : candidates) total += file.length();
+                if (total <= IMAGE_DISK_CACHE_BUDGET_BYTES) return;
+                Comparator<File> oldestFirst = (a, b) -> Long.compare(a.lastModified(), b.lastModified());
+                candidates.sort(oldestFirst);
+                for (File file : candidates) {
+                    if (total <= IMAGE_DISK_CACHE_BUDGET_BYTES) break;
+                    long size = file.length();
+                    if (file.delete()) total -= size;
+                }
+            } catch (Exception ignored) {
+            }
+        });
+    }
+
+    private int currentProgress() {
+        return Math.max(0, Math.min(page, Math.max(0, totalPages - 1)));
+    }
+
+    /**
+     * 上报阅读进度。
+     *
+     * 非强制调用走 {@link #PROGRESS_SAVE_DEBOUNCE_MS} 防抖：连续模式下
+     * {@code onScrolled} 每次跨页都会调一次，快速翻过两百页的漫画原本会打出
+     * 两百个串行 PATCH 请求（还排在图片下载同一条队列里）。现在只在停下来
+     * 之后发一次；onPause / onDestroy 用 force=true 立即落盘，不丢进度。
+     */
     private void saveProgressToServer(boolean force) {
         if (!progressReady) return;
-        final int progress = Math.max(0, Math.min(page, Math.max(0, totalPages - 1)));
+        final int progress = currentProgress();
         if (!force && progress == lastSavedServerProgress) return;
+        mainHandler.removeCallbacks(progressSaveTask);
+        if (force) {
+            postProgressToServer(progress);
+        } else {
+            mainHandler.postDelayed(progressSaveTask, PROGRESS_SAVE_DEBOUNCE_MS);
+        }
+    }
+
+    private void postProgressToServer(final int progress) {
+        if (!progressReady) return;
         lastSavedServerProgress = progress;
-        new AsyncTask<Void, Void, Void>() {
-            @Override
-            protected Void doInBackground(Void... voids) {
-                try {
-                    JSONObject body = new JSONObject().put("progress", progress);
-                    new ApiClient(serverUrl, token).patchJson("/media/" + id, body, true);
-                } catch (Exception ignored) {
-                }
-                return null;
+        netExecutor.execute(() -> {
+            try {
+                JSONObject body = new JSONObject().put("progress", progress);
+                new ApiClient(serverUrl, token).patchJson("/media/" + id, body, true);
+            } catch (Exception ignored) {
             }
-        }.execute();
+        });
+    }
+
+    private android.content.SharedPreferences pageSizePrefs() {
+        // 页高缓存以前和 server_url / token 挤在同一个 he_manager 文件里，
+        // 每页一个 key、从不清理——看过几千页之后，App 启动时要同步解析一个
+        // 几千条目的 XML 才能读到服务器地址。拆到独立文件后互不影响。
+        return getSharedPreferences(PREFS_PAGE_SIZES, MODE_PRIVATE);
     }
 
     private String pageHeightKey(int pageIndex) {
@@ -700,42 +804,48 @@ public class MangaActivity extends Activity {
             prefetchInFlight.add(pageIndex);
         }
         final String url = pageUrl(pageIndex, false);
-        final int viewportWidth = Math.max(1, getResources().getDisplayMetrics().widthPixels);
+        final int viewportWidth = readerViewportWidth();
+        // 预取一律按"常规质量"解码。放大到高清阈值以上时只重解可见的那几页
+        // （refreshVisibleContinuousPagesForZoom），不要让 8 页预取都吃 3 倍内存。
         final int decodeWidth = targetScrollDecodeWidth(viewportWidth, 1f);
-        AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>() {
-            @Override
-            protected Void doInBackground(Void... voids) {
-                try {
-                    File file = cachedImageFile(url, pageIndex);
-                    if (isCancelled()) return null;
-                    if (readingMode == MODE_SCROLL && bitmapCache != null
-                            && bitmapCache.get(pageIndex) == null) {
-                        Bitmap bm = decodeBitmapForPage(file, decodeWidth);
-                        if (bm != null) {
-                            bitmapCache.put(pageIndex, bm);
-                            bitmapDecodeWidths.put(pageIndex, decodeWidth);
-                        }
+        final Future<?>[] holder = new Future<?>[1];
+        Future<?> task = ioExecutor.submit(() -> {
+            try {
+                File file = cachedImageFile(url, pageIndex);
+                if (Thread.currentThread().isInterrupted()) return;
+                if (readingMode == MODE_SCROLL && bitmapCache != null
+                        && bitmapCache.get(pageIndex) == null) {
+                    Bitmap bm = decodeBitmapForPage(file, decodeWidth);
+                    if (bm != null) {
+                        bitmapCache.put(pageIndex, bm);
+                        bitmapDecodeWidths.put(pageIndex, decodeWidth);
                     }
-                } catch (Exception ignored) {}
-                return null;
-            }
-            @Override
-            protected void onPostExecute(Void v) {
+                }
+            } catch (Exception ignored) {
+            } finally {
                 synchronized (prefetchInFlight) { prefetchInFlight.remove(pageIndex); }
-                synchronized (prefetchTasks) { prefetchTasks.remove(this); }
+                synchronized (prefetchTasks) { prefetchTasks.remove(holder[0]); }
             }
-            @Override
-            protected void onCancelled(Void v) {
-                synchronized (prefetchInFlight) { prefetchInFlight.remove(pageIndex); }
-                synchronized (prefetchTasks) { prefetchTasks.remove(this); }
-            }
-        };
+        });
+        holder[0] = task;
         synchronized (prefetchTasks) { prefetchTasks.add(task); }
-        task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+    }
+
+    /** 阅读区实际宽度（px）。横屏 / 分屏下和屏幕宽度不是一回事。 */
+    private int readerViewportWidth() {
+        if (continuousRecycler != null && continuousRecycler.getWidth() > 0) {
+            return continuousRecycler.getWidth();
+        }
+        if (pager != null && pager.getWidth() > 0) {
+            return pager.getWidth();
+        }
+        return Math.max(1, getResources().getDisplayMetrics().widthPixels);
     }
 
     private int targetScrollDecodeWidth(int viewportWidth, float scale) {
-        float multiplier = scale >= SCROLL_HIGH_QUALITY_ZOOM ? 3.0f : 2.0f;
+        float multiplier = scale >= SCROLL_HIGH_QUALITY_ZOOM
+                ? 3.0f
+                : SCROLL_BASE_DECODE_MULTIPLIER;
         return Math.max(1, Math.min(SCROLL_MAX_DECODE_WIDTH, Math.round(viewportWidth * multiplier)));
     }
 
@@ -804,10 +914,9 @@ public class MangaActivity extends Activity {
             final int thisGen = holder.bindGen;
             prefetchPagesAround(position);
 
-            final int viewportWidth = Math.max(1, getResources().getDisplayMetrics().widthPixels);
+            final int viewportWidth = readerViewportWidth();
             final int decodeWidth = targetScrollDecodeWidth(viewportWidth, zoomLayout == null ? 1f : zoomLayout.getCurrentScale());
-            int cachedHeight = getSharedPreferences("he_manager", MODE_PRIVATE)
-                    .getInt(pageHeightKey(position), 0);
+            int cachedHeight = pageSizePrefs().getInt(pageHeightKey(position), 0);
             int height = cachedHeight > 0 ? cachedHeight : viewportWidth;
             ViewGroup.LayoutParams lp = holder.itemView.getLayoutParams();
             lp.height = height;
@@ -836,55 +945,49 @@ public class MangaActivity extends Activity {
 
             final String url = pageUrl(position, false);
             final boolean hadCachedBitmap = showingCachedBitmap;
-            new AsyncTask<Void, Void, Bitmap>() {
-                String error;
-                @Override
-                protected Bitmap doInBackground(Void... voids) {
-                    try {
-                        File file = cachedImageFile(url, position);
-                        Bitmap bm = decodeBitmapForPage(file, decodeWidth);
-                        if (bm != null && bitmapCache != null) {
-                            bitmapCache.put(position, bm);
-                            bitmapDecodeWidths.put(position, decodeWidth);
-                        }
-                        return bm;
-                    } catch (Exception e) {
-                        error = e.getMessage();
-                        return null;
+            ioExecutor.execute(() -> {
+                String error = null;
+                Bitmap bm = null;
+                try {
+                    File file = cachedImageFile(url, position);
+                    bm = decodeBitmapForPage(file, decodeWidth);
+                    if (bm != null && bitmapCache != null) {
+                        bitmapCache.put(position, bm);
+                        bitmapDecodeWidths.put(position, decodeWidth);
                     }
+                } catch (Exception e) {
+                    error = e.getMessage();
                 }
-                @Override
-                protected void onPostExecute(Bitmap bm) {
+                final Bitmap result = bm;
+                final String errorText = error;
+                mainHandler.post(() -> {
                     if (holder.bindGen != thisGen) return;
                     if (generation != loadGeneration) return;
-                    if (bm == null) {
+                    if (result == null) {
                         if (!hadCachedBitmap) {
-                            holder.statusText.setText(error == null ? "加载失败" : error);
+                            holder.statusText.setText(errorText == null ? "加载失败" : errorText);
                         }
                         return;
                     }
                     holder.statusText.setVisibility(View.GONE);
                     holder.imageView.setVisibility(View.VISIBLE);
-                    holder.imageView.setImageBitmap(bm);
-                    adjustHeightForBitmap(holder, position, bm);
-                }
-            }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                    holder.imageView.setImageBitmap(result);
+                    adjustHeightForBitmap(holder, position, result);
+                });
+            });
         }
 
         private void adjustHeightForBitmap(PageHolder holder, int position, Bitmap bm) {
             int iw = bm.getWidth();
             int ih = bm.getHeight();
             if (iw <= 0 || ih <= 0) return;
-            int targetWidth = Math.max(1, getResources().getDisplayMetrics().widthPixels);
+            int targetWidth = readerViewportWidth();
             int targetHeight = Math.max(dp(120), Math.round(targetWidth * (ih / (float) iw)));
             ViewGroup.LayoutParams lp = holder.itemView.getLayoutParams();
             if (lp.height != targetHeight) {
                 lp.height = targetHeight;
                 holder.itemView.setLayoutParams(lp);
-                getSharedPreferences("he_manager", MODE_PRIVATE)
-                        .edit()
-                        .putInt(pageHeightKey(position), targetHeight)
-                        .apply();
+                pageSizePrefs().edit().putInt(pageHeightKey(position), targetHeight).apply();
             }
         }
 
@@ -915,7 +1018,23 @@ public class MangaActivity extends Activity {
                 imageView.setZoomEnabled(true);
                 imageView.setQuickScaleEnabled(false);
                 imageView.setClickable(true);
-                imageView.setOnClickListener(view -> showControls());
+                // 左右各 28% 是翻页区，中间 44% 呼出控制条——和主流漫画阅读器一致，
+                // 单手拿着手机也能翻页，不用每次都划。放大状态下不翻页（此时用户
+                // 是在平移画面），交给 SubsamplingScaleImageView 自己处理。
+                final GestureDetector tapDetector = new GestureDetector(
+                        MangaActivity.this,
+                        new GestureDetector.SimpleOnGestureListener() {
+                            @Override
+                            public boolean onSingleTapConfirmed(MotionEvent event) {
+                                handleReaderTap(imageView, event.getX());
+                                return false;
+                            }
+                        });
+                imageView.setOnTouchListener((view, event) -> {
+                    tapDetector.onTouchEvent(event);
+                    // 返回 false：事件继续交给 SSIV，缩放 / 平移 / 双击放大都不受影响。
+                    return false;
+                });
 
                 statusText = new TextView(MangaActivity.this);
                 statusText.setTextColor(Color.WHITE);
@@ -944,35 +1063,80 @@ public class MangaActivity extends Activity {
             holder.statusText.setVisibility(View.VISIBLE);
             holder.statusText.setText("\u52a0\u8f7d\u4e2d...");
 
-            String url = pageUrl(position, true);
-            new android.os.AsyncTask<String, Void, File>() {
-                String error;
-                @Override
-                protected File doInBackground(String... urls) {
-                    try {
-                        return cachedImageFile(urls[0], position);
-                    } catch (Exception e) {
-                        error = e.getMessage();
-                        return null;
-                    }
+            final String url = pageUrl(position, true);
+            // 关键修复：原来这里是 AsyncTask.execute()，走的是**全局串行**执行器。
+            // 一页下载卡住，后面所有页面（以及进度上报）全部排队等待，表现为
+            // "翻了好几页都停在加载中"。改用本 Activity 自己的线程池并行下载。
+            ioExecutor.execute(() -> {
+                String error = null;
+                File file = null;
+                try {
+                    file = cachedImageFile(url, position);
+                } catch (Exception e) {
+                    error = e.getMessage();
                 }
-                @Override
-                protected void onPostExecute(File file) {
+                final File result = file;
+                final String errorText = error;
+                mainHandler.post(() -> {
                     if (holder.loadGen != currentGen) return;
-                    if (file == null) {
-                        holder.statusText.setText(error == null ? "加载失败" : error);
+                    if (result == null) {
+                        holder.statusText.setText(errorText == null ? "加载失败" : errorText);
                         return;
                     }
                     holder.statusText.setVisibility(View.GONE);
                     holder.imageView.setVisibility(View.VISIBLE);
-                    holder.imageView.setImage(ImageSource.uri(file.getAbsolutePath()));
-                }
-            }.execute(url);
+                    holder.imageView.setImage(ImageSource.uri(result.getAbsolutePath()));
+                });
+            });
+        }
+
+        @Override
+        public void onViewRecycled(@NonNull ViewHolder holder) {
+            // SubsamplingScaleImageView 会把整页切成 tile 缓存在内存里。
+            // 回收时不释放的话，offscreenPageLimit=2 意味着 5 页的 tile 常驻，
+            // 长条漫画很容易把内存吃满。
+            holder.loadGen++;
+            holder.imageView.recycle();
+            holder.imageView.setVisibility(View.GONE);
+            super.onViewRecycled(holder);
         }
 
         @Override
         public int getItemCount() {
             return totalPages;
+        }
+    }
+
+    /**
+     * 翻页模式下的点击分区：左 28% 上一页 / 右 28% 下一页 / 中间呼出控制条。
+     * 图片已被放大（scale 明显大于 minScale）时一律当作"呼出控制条"，
+     * 避免用户在放大浏览细节时误触翻页。
+     */
+    private void handleReaderTap(SubsamplingScaleImageView imageView, float tapX) {
+        if (readingMode != MODE_PAGE || pager == null) {
+            showControls();
+            return;
+        }
+        boolean zoomedIn = imageView.getScale() > imageView.getMinScale() * 1.05f;
+        int width = imageView.getWidth();
+        if (zoomedIn || width <= 0) {
+            showControls();
+            return;
+        }
+        if (tapX < width * 0.28f) {
+            if (page > 0) {
+                pager.setCurrentItem(page - 1, true);
+            } else {
+                showControls();
+            }
+        } else if (tapX > width * 0.72f) {
+            if (page < totalPages - 1) {
+                pager.setCurrentItem(page + 1, true);
+            } else {
+                showControls();
+            }
+        } else {
+            showControls();
         }
     }
 }
