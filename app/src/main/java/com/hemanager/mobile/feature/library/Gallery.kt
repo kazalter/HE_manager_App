@@ -8,13 +8,7 @@ package com.hemanager.mobile.feature.library
 // 这是 library 模块最复杂的视觉部分：用原生 RecyclerView 实现大网格性能，
 // 在 Compose 里通过 AndroidView 嵌入。
 
-import com.hemanager.mobile.ApiClient
-import com.hemanager.mobile.MangaActivity
 import com.hemanager.mobile.MediaItem
-import com.hemanager.mobile.TagItem
-import android.content.Intent
-import android.os.Bundle
-import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -22,154 +16,35 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
 import coil.ImageLoader
-import coil.compose.AsyncImage
-import coil.disk.DiskCache
 import coil.load
-import coil.memory.MemoryCache
 import coil.request.CachePolicy
 import coil.request.Disposable
-import coil.request.ImageRequest
 import coil.size.Precision
 import coil.size.Scale
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.togetherWith
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animate
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items as gridItems
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.automirrored.filled.ViewList
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.LocalOffer
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.StarBorder
-import androidx.compose.material.icons.filled.ViewModule
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.NavigationDrawerItemDefaults
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Snackbar
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.Surface
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDrawerState
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.geometry.Offset
@@ -177,63 +52,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.drawscope.clipRect
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.util.VelocityTracker
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.ViewCompositionStrategy
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.distinctUntilChanged
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LifecycleEventEffect
-import com.hemanager.mobile.data.HePrefs
 import com.hemanager.mobile.data.image.coverCacheKey
-import com.hemanager.mobile.data.image.coverDecodeBucketPx
-import com.hemanager.mobile.data.image.coverImageRequest
 import com.hemanager.mobile.data.image.imageGalleryDecodeBucketPx
 import com.hemanager.mobile.data.image.imageGalleryPlaceholderColor
-import com.hemanager.mobile.data.image.isCoverInMemory
-import com.hemanager.mobile.feature.login.LoginScreen
-import com.hemanager.mobile.ui.components.BrandMark
-import com.hemanager.mobile.ui.components.GlassPanel
 import com.hemanager.mobile.ui.components.LocalCoverImageLoader
-import com.hemanager.mobile.ui.components.ModernTextField
-import com.hemanager.mobile.ui.theme.AppBackgroundBrush
 import com.hemanager.mobile.ui.theme.HeColorScheme
-import com.hemanager.mobile.ui.util.toastComingSoon
-import com.hemanager.mobile.ui.util.toastError
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.json.JSONObject
-import java.util.Calendar
-import java.util.Locale
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
-import kotlin.math.abs
-import kotlin.math.floor
 import kotlin.math.roundToInt
 
 internal fun Modifier.imageGalleryPinchZoom(
@@ -503,6 +336,8 @@ private class NativeImageGalleryAdapterV2(
         val favoriteBadge: TextView = TextView(root.context)
         val missingBadge: TextView = TextView(root.context)
         var disposable: Disposable? = null
+        /** 当前已经加载成功的 Coil 缓存 key，用来跳过重复的 dispose + reload。 */
+        var boundKey: String? = null
 
         init {
             // HE OP — Panel 底色（#16171D）
@@ -604,6 +439,7 @@ private class NativeImageGalleryAdapterV2(
         if (holder is TileHolder) {
             holder.disposable?.dispose()
             holder.disposable = null
+            holder.boundKey = null
             holder.imageView.setImageDrawable(null)
         }
         super.onViewRecycled(holder)
@@ -635,7 +471,30 @@ private class NativeImageGalleryAdapterV2(
         onRefresh: () -> Unit,
         onRetry: () -> Unit
     ) {
-        val sizeChanged = this.tilePx != tilePx || this.columns != columns
+        // 之前这里无条件 notifyDataSetChanged()，而 update{} 会在**任何一次重组**时
+        // 被调用（搜索框输入、回到顶部按钮显隐、pinch 状态变化……），于是整屏瓦片
+        // 每次都全量重绑、Coil 请求全部 dispose 再重发。这里改成只在真正影响渲染的
+        // 字段变化时才 notify；回调 lambda 每次重组都是新对象，但它们只在点击时被
+        // 读取，换掉字段就够了，不需要重绑。
+        val hadEmptyRow = hasEmptyRow()
+        val structureChanged =
+            this.tilePx != tilePx ||
+                this.columns != columns ||
+                this.interactionsEnabled != interactionsEnabled ||
+                this.serverUrl != serverUrl ||
+                this.token != token ||
+                (
+                    inlineHeaders && (
+                        this.loading != loading ||
+                            this.error != error ||
+                            this.search != search ||
+                            this.selectedMediaType != selectedMediaType ||
+                            this.selectedStatus != selectedStatus ||
+                            this.viewMode != viewMode ||
+                            this.mediaFilters != mediaFilters ||
+                            this.statusFilters != statusFilters
+                        )
+                    )
         this.serverUrl = serverUrl
         this.token = token
         this.loading = loading
@@ -658,16 +517,24 @@ private class NativeImageGalleryAdapterV2(
         this.onMenu = onMenu
         this.onRefresh = onRefresh
         this.onRetry = onRetry
-        notifyDataSetChanged()
+        // loading / error 在 inlineHeaders=false（图廊真正走的分支）下不占行，
+        // 只会通过"空状态行"影响行数；每次 onResume 刷新都 loading=true→false，
+        // 无条件 notify 会让整屏白重绑两次。
+        if (structureChanged || hadEmptyRow != hasEmptyRow()) notifyDataSetChanged()
     }
 
     fun submitItems(nextItems: List<MediaItem>) {
-        val nextIds = IntArray(nextItems.size) { nextItems[it].id }
-        if (nextIds.contentEquals(itemIds) && nextItems.size == items.size) {
-            items = nextItems
-            return
+        // 签名带上 favorite / missing：只比 id 的话，别处（长按菜单、播放器里）
+        // 改了收藏状态后网格上的角标不会更新。
+        val nextIds = IntArray(nextItems.size) { index ->
+            val item = nextItems[index]
+            var signature = item.id * 4
+            if (item.favorite) signature += 1
+            if (item.missing) signature += 2
+            signature
         }
         items = nextItems
+        if (nextIds.contentEquals(itemIds)) return
         itemIds = nextIds
         notifyDataSetChanged()
     }
@@ -771,12 +638,24 @@ private class NativeImageGalleryAdapterV2(
             if (interactionsEnabled) openItem(context, item, serverUrl, token, false, playlist)
         }
 
-        holder.disposable?.dispose()
-        holder.imageView.setImageDrawable(null)
         val url = coverUrl(serverUrl, token, item)
-        if (url.isNullOrBlank()) return
+        if (url.isNullOrBlank()) {
+            holder.disposable?.dispose()
+            holder.disposable = null
+            holder.boundKey = null
+            holder.imageView.setImageDrawable(null)
+            return
+        }
         val decodePx = imageGalleryDecodeBucketPx(tilePx, columns)
         val key = coverCacheKey(url, decodePx, decodePx)
+        // 同一张图、同样尺寸、而且已经画上去了 —— 直接复用。滚动停下来时
+        // onScrollStateChanged 会对可见区间发一次 notifyItemRangeChanged，
+        // 没有这个判断的话每次停手所有可见瓦片都要重新发一轮 Coil 请求。
+        if (holder.boundKey == key && holder.imageView.drawable != null) return
+
+        holder.disposable?.dispose()
+        holder.imageView.setImageDrawable(null)
+        holder.boundKey = key
         holder.disposable = holder.imageView.load(url, imageLoader = coverImageLoader) {
             size(decodePx, decodePx)
             scale(Scale.FILL)

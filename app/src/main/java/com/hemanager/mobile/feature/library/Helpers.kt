@@ -161,7 +161,15 @@ internal fun creatorThumbUrl(serverUrl: String, token: String, coverPath: String
 }
 
 
+/**
+ * 图廊性能日志。
+ *
+ * 这些调用点全都在滚动 / pinch 的热路径上，而且参数是带字符串模板的，
+ * 即使 Log.d 最终被丢弃，拼串也已经发生了。用一个编译期常量做开关，
+ * 关掉时整段会被编译器消除，release 包里不留痕迹。
+ */
 internal fun logImageGalleryPerf(message: String) {
+    if (!imageGalleryPerfLogEnabled) return
     Log.d(imageGalleryPerfLogTag, message)
 }
 
