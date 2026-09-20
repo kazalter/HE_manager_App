@@ -16,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,6 +53,14 @@ fun PlayerSeekBar(
     var dragging by remember { mutableStateOf(false) }
     var dragFraction by remember { mutableFloatStateOf(0f) }
 
+    // pointerInput(Unit) 里的协程不会因为重组而重启，捕获的 lambda 会停在协程启动
+    // 那一刻的版本。这些回调内部读的是 state.durationMs：切下一集之后时长变了，
+    // 旧 lambda 还按上一集的时长换算，拖动就会跳到错误的位置。用
+    // rememberUpdatedState 持有稳定引用，手势里现读最新回调。
+    val scrubStart by rememberUpdatedState(onScrubStart)
+    val scrubMove by rememberUpdatedState(onScrubMove)
+    val scrubEnd by rememberUpdatedState(onScrubEnd)
+
     val effectiveProgress = if (dragging) dragFraction else progress.coerceIn(0f, 1f)
     val trackHeight by animateFloatAsState(
         targetValue = if (dragging) 6f else 3f,
@@ -73,7 +82,7 @@ fun PlayerSeekBar(
                     onTap = { offset ->
                         if (width <= 0) return@detectTapGestures
                         val fraction = (offset.x / width).coerceIn(0f, 1f)
-                        onScrubEnd(fraction)
+                        scrubEnd(fraction)
                     },
                 )
             }
@@ -83,17 +92,17 @@ fun PlayerSeekBar(
                         if (width <= 0) return@detectDragGestures
                         dragging = true
                         dragFraction = (offset.x / width).coerceIn(0f, 1f)
-                        onScrubStart()
-                        onScrubMove(dragFraction)
+                        scrubStart()
+                        scrubMove(dragFraction)
                     },
                     onDrag = { change, _ ->
                         if (width <= 0) return@detectDragGestures
                         dragFraction = (change.position.x / width).coerceIn(0f, 1f)
-                        onScrubMove(dragFraction)
+                        scrubMove(dragFraction)
                         change.consume()
                     },
                     onDragEnd = {
-                        onScrubEnd(dragFraction)
+                        scrubEnd(dragFraction)
                         dragging = false
                     },
                     onDragCancel = {

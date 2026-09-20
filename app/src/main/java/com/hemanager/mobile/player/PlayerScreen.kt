@@ -18,6 +18,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -31,6 +32,7 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.hemanager.mobile.player.model.PlayerStatus
 import com.hemanager.mobile.player.model.PlayerUiState
+import com.hemanager.mobile.player.state.PlayerGestureHandler
 import com.hemanager.mobile.player.state.SystemControls
 import com.hemanager.mobile.player.state.playerGestures
 import com.hemanager.mobile.player.ui.AspectModeSheet
@@ -88,7 +90,8 @@ fun PlayerScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        if (isLandscape) {
+        // 画中画小窗：整窗只画视频，不要竖屏那套 16:9 + 信息区布局。
+        if (isLandscape || state.inPictureInPicture) {
             VideoFrame(
                 viewModel = viewModel,
                 systemControls = systemControls,
@@ -119,7 +122,6 @@ fun PlayerScreen(
                 PortraitInfoSection(
                     state = state,
                     onToggleFavorite = { scope.launch { viewModel.toggleFavorite() } },
-                    onAddTag = { /* Phase 4 — wires to existing tag sheet flow */ },
                     onToggleWatched = { scope.launch { viewModel.toggleWatched() } },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -205,115 +207,128 @@ private fun VideoFrame(
                 PlayerView(ctx).apply {
                     useController = false
                     setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
-                    keepScreenOn = true
                     resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                     player = viewModel.player
                 }
             },
-            update = { view -> view.resizeMode = state.aspectMode.resizeMode },
+            update = { view ->
+                view.resizeMode = state.aspectMode.resizeMode
+                // 常亮只在真正播放时保留。之前写死 true，暂停后屏幕也永不熄灭。
+                view.keepScreenOn = state.isPlaying
+            },
         )
 
         // Gesture layer — beneath the controls so taps on visible buttons go to those,
         // but covers the rest of the video region for our custom gestures.
+        //
+        // 所有回调和尺寸都写进 remember 出来的 handler，手势协程现读（见
+        // PlayerGestureHandler 的注释：pointerInput 的协程不会因重组而重启，
+        // 按值捕获的参数会过期）。
+        val gestures = remember { PlayerGestureHandler() }
+        SideEffect {
+            gestures.widthPx = widthPx.takeIf { it > 0f } ?: 1f
+            gestures.heightPx = heightPx.takeIf { it > 0f } ?: 1f
+            // Single-tap is the ONLY thing that toggles controls. Read latest
+            // state at fire time so we don't toggle off a stale snapshot.
+            gestures.onSingleTap = {
+                val current = viewModel.uiState.value.controlsVisible
+                viewModel.setControlsVisible(!current)
+            }
+            gestures.onDoubleTap = { offset ->
+                val w = gestures.widthPx
+                // Centre band toggles play/pause without participating in the
+                // accumulator at all (so a play/pause double-tap doesn't leave
+                // a stray "10s" indicator hanging).
+                if (offset.x in (w * 0.42f)..(w * 0.58f)) {
+                    viewModel.togglePlayPause()
+                } else {
+                    val newSide =
+                        if (offset.x < w * 0.5f) DoubleTapSide.LEFT else DoubleTapSide.RIGHT
+
+                    // If the user switched sides mid-accumulation, commit the old
+                    // direction immediately before starting fresh on the new side.
+                    if (doubleTapSide != null && doubleTapSide != newSide && doubleTapAccumSec != 0) {
+                        viewModel.seekBy(doubleTapAccumSec * 1000L)
+                        doubleTapAccumSec = 0
+                    }
+
+                    doubleTapSide = newSide
+                    doubleTapAccumSec += if (newSide == DoubleTapSide.LEFT) -10 else 10
+                    doubleTapVisible = true
+
+                    // Restart the 600 ms commit timer.
+                    commitJob?.cancel()
+                    commitJob = coroutineScope.launch {
+                        delay(600L)
+                        val toSeek = doubleTapAccumSec
+                        if (toSeek != 0) viewModel.seekBy(toSeek * 1000L)
+                        doubleTapVisible = false
+                        // Wait for the fade-out animation, then reset state. If the
+                        // user tapped again during the fade, doubleTapVisible will
+                        // have been re-flipped to true and we leave the value alone.
+                        delay(320L)
+                        if (!doubleTapVisible) {
+                            doubleTapAccumSec = 0
+                            doubleTapSide = null
+                        }
+                    }
+                }
+            }
+            gestures.onLongPressStart = {
+                viewModel.startLongPressBoost()
+                longPress2xActive = true
+            }
+            gestures.onLongPressEnd = {
+                viewModel.endLongPressBoost()
+                longPress2xActive = false
+            }
+            gestures.onSeekStart = {
+                scrubStartPositionMs = viewModel.uiState.value.positionMs
+                viewModel.setScrubbing(true)
+            }
+            gestures.onSeekDelta = { _, totalDx ->
+                val w = gestures.widthPx
+                val duration = viewModel.uiState.value.durationMs
+                if (duration > 0L) {
+                    // 90% of the screen → 120s (or full duration, whichever smaller).
+                    val window = (kotlin.math.min(duration, 120_000L)).toFloat()
+                    val deltaMs = (totalDx / w * window).toLong()
+                    val target = (scrubStartPositionMs + deltaMs).coerceIn(0L, duration)
+                    viewModel.previewScrubPosition(target)
+                    seekIndicator = SeekIndicator.Scrub(target, duration)
+                }
+            }
+            gestures.onSeekEnd = {
+                viewModel.commitScrub(viewModel.uiState.value.positionMs)
+                seekIndicator = null
+            }
+            gestures.onBrightnessStart = { /* nothing — first delta will set the bar */ }
+            gestures.onBrightnessDelta = { dy ->
+                val h = gestures.heightPx
+                // Drag full height ~= ±1.0 brightness change.
+                val current = systemControls.getBrightness()
+                val next = (current - dy / h).coerceIn(0.01f, 1f)
+                systemControls.setBrightness(next)
+                barIndicator = BarIndicator(BarIndicator.Kind.BRIGHTNESS, next)
+            }
+            gestures.onBrightnessEnd = { /* leave indicator to fade via LaunchedEffect */ }
+            gestures.onVolumeStart = { }
+            gestures.onVolumeDelta = { dy ->
+                val h = gestures.heightPx
+                val current = systemControls.getVolume()
+                val next = (current - dy / h).coerceIn(0f, 1f)
+                systemControls.setVolume(next)
+                barIndicator = BarIndicator(BarIndicator.Kind.VOLUME, next)
+            }
+            gestures.onVolumeEnd = { }
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .playerGestures(
                     enabled = !state.locked && state.status !is PlayerStatus.Error,
-                    widthPx = widthPx.takeIf { it > 0f } ?: 1f,
-                    // Single-tap is the ONLY thing that toggles controls. Read latest
-                    // state at fire time so we don't toggle off a stale snapshot.
-                    onSingleTap = {
-                        val current = viewModel.uiState.value.controlsVisible
-                        viewModel.setControlsVisible(!current)
-                    },
-                    onDoubleTap = { offset ->
-                        val w = widthPx.takeIf { it > 0f } ?: return@playerGestures
-                        // Centre band toggles play/pause without participating in the
-                        // accumulator at all (so a play/pause double-tap doesn't leave
-                        // a stray "10s" indicator hanging).
-                        if (offset.x in (w * 0.42f)..(w * 0.58f)) {
-                            viewModel.togglePlayPause()
-                            return@playerGestures
-                        }
-
-                        val newSide = if (offset.x < w * 0.5f) DoubleTapSide.LEFT else DoubleTapSide.RIGHT
-
-                        // If the user switched sides mid-accumulation, commit the old
-                        // direction immediately before starting fresh on the new side.
-                        if (doubleTapSide != null && doubleTapSide != newSide && doubleTapAccumSec != 0) {
-                            viewModel.seekBy(doubleTapAccumSec * 1000L)
-                            doubleTapAccumSec = 0
-                        }
-
-                        doubleTapSide = newSide
-                        doubleTapAccumSec += if (newSide == DoubleTapSide.LEFT) -10 else 10
-                        doubleTapVisible = true
-
-                        // Restart the 600 ms commit timer.
-                        commitJob?.cancel()
-                        commitJob = coroutineScope.launch {
-                            delay(600L)
-                            val toSeek = doubleTapAccumSec
-                            if (toSeek != 0) viewModel.seekBy(toSeek * 1000L)
-                            doubleTapVisible = false
-                            // Wait for the fade-out animation, then reset state. If the
-                            // user tapped again during the fade, doubleTapVisible will
-                            // have been re-flipped to true and we leave the value alone.
-                            delay(320L)
-                            if (!doubleTapVisible) {
-                                doubleTapAccumSec = 0
-                                doubleTapSide = null
-                            }
-                        }
-                    },
-                    onLongPressStart = {
-                        viewModel.startLongPressBoost()
-                        longPress2xActive = true
-                    },
-                    onLongPressEnd = {
-                        viewModel.endLongPressBoost()
-                        longPress2xActive = false
-                    },
-                    onSeekStart = {
-                        scrubStartPositionMs = state.positionMs
-                        viewModel.setScrubbing(true)
-                    },
-                    onSeekDelta = { _, totalDx ->
-                        val w = widthPx.takeIf { it > 0f } ?: return@playerGestures
-                        val duration = state.durationMs
-                        if (duration <= 0L) return@playerGestures
-                        // 90% of the screen → 120s (or full duration, whichever smaller).
-                        val window = (kotlin.math.min(duration, 120_000L)).toFloat()
-                        val deltaMs = (totalDx / w * window).toLong()
-                        val target = (scrubStartPositionMs + deltaMs).coerceIn(0L, duration)
-                        viewModel.previewScrubPosition(target)
-                        seekIndicator = SeekIndicator.Scrub(target, duration)
-                    },
-                    onSeekEnd = {
-                        val target = state.positionMs
-                        viewModel.commitScrub(target)
-                        seekIndicator = null
-                    },
-                    onBrightnessStart = { /* nothing — first delta will set the bar */ },
-                    onBrightnessDelta = { dy ->
-                        val h = heightPx.takeIf { it > 0f } ?: return@playerGestures
-                        // Drag full height ~= ±1.0 brightness change.
-                        val current = systemControls.getBrightness()
-                        val next = (current - dy / h).coerceIn(0.01f, 1f)
-                        systemControls.setBrightness(next)
-                        barIndicator = BarIndicator(BarIndicator.Kind.BRIGHTNESS, next)
-                    },
-                    onBrightnessEnd = { /* leave indicator to fade via LaunchedEffect */ },
-                    onVolumeStart = { },
-                    onVolumeDelta = { dy ->
-                        val h = heightPx.takeIf { it > 0f } ?: return@playerGestures
-                        val current = systemControls.getVolume()
-                        val next = (current - dy / h).coerceIn(0f, 1f)
-                        systemControls.setVolume(next)
-                        barIndicator = BarIndicator(BarIndicator.Kind.VOLUME, next)
-                    },
-                    onVolumeEnd = { },
+                    handler = gestures,
                 ),
         )
 
@@ -321,16 +336,22 @@ private fun VideoFrame(
             is PlayerStatus.Error -> ErrorOverlay(
                 message = status.message,
                 onRetry = { viewModel.retryCurrent() },
-                onShowFileInfo = { /* Phase 4 */ },
                 onBack = onBack,
+                // 出错时如果这个播放列表还有下一个，直接给一条出路，
+                // 而不是把用户困在"重试 / 返回"两个选项里。
+                onPlayNext = if (state.canSkipNext) {
+                    { viewModel.playNext() }
+                } else {
+                    null
+                },
                 modifier = Modifier.fillMaxSize(),
             )
             else -> PlayerControlsOverlay(
                 state = state,
                 isFullscreen = isFullscreen,
                 onBack = onBack,
-                onToggleFavorite = { /* trigger via VM in scope; portrait info has its own button */ },
-                onMore = { /* Phase 4 */ },
+                // 全屏顶栏的收藏按钮以前是空实现，点了毫无反应。接到 VM 上。
+                onToggleFavorite = { coroutineScope.launch { viewModel.toggleFavorite() } },
                 onTogglePlay = { viewModel.togglePlayPause() },
                 onRewind = { viewModel.seekBy(-10_000L) },
                 onForward = { viewModel.seekBy(10_000L) },
@@ -361,6 +382,9 @@ private fun VideoFrame(
                     if (nowLocked) viewModel.setControlsVisible(false)
                 },
                 onToggleFullscreen = onToggleFullscreen,
+                // 任何面板（倍速 / 比例 / 音轨）打开时冻结 3s 自动隐藏，
+                // 否则面板还开着，底下的控制条已经淡出，关掉面板就是一片空白。
+                autoHideEnabled = !showSpeedSheet && !showAspectSheet && !showTracksSheet,
                 onAutoHide = { viewModel.setControlsVisible(false) },
                 modifier = Modifier.fillMaxSize(),
             )

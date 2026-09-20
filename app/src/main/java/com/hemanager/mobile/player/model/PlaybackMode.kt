@@ -7,13 +7,10 @@ enum class PlaybackMode(val label: String) {
     SHUFFLE("随机播放"),
     END_PAUSE("播完暂停");
 
-    fun next(): PlaybackMode {
-        val values = values()
-        return values[(ordinal + 1) % values.size]
-    }
+    fun next(): PlaybackMode = entries[(ordinal + 1) % entries.size]
 
     companion object {
         fun fromName(name: String?): PlaybackMode =
-            values().firstOrNull { it.name == name } ?: SEQUENCE
+            entries.firstOrNull { it.name == name } ?: SEQUENCE
     }
 }

@@ -17,7 +17,8 @@ class PlayerRepository(
     private val serverUrl: String,
     private val token: String,
 ) {
-    private val api: ApiClient get() = ApiClient(serverUrl, token)
+    // ApiClient 是无状态的轻包装，建一次复用即可；之前写成 get() 每次调用都 new 一个。
+    private val api: ApiClient = ApiClient(serverUrl, token)
 
     fun streamUrl(mediaId: Int): String =
         "$serverUrl/mobile/stream/$mediaId?${ApiClient.tokenQuery(token)}"

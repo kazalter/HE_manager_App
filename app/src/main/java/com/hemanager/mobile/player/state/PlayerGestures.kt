@@ -15,6 +15,43 @@ import kotlin.math.abs
 enum class DragKind { NONE, SEEK, BRIGHTNESS, VOLUME }
 
 /**
+ * 播放区手势的可变载体。
+ *
+ * **为什么需要它**：`Modifier.pointerInput(Unit) { ... }` 的协程只在 key 变化或节点
+ * 重新挂载时才重启（见 `SuspendingPointerInputModifierNodeImpl.update`：key 相同就
+ * 只更新字段、不 reset 正在跑的协程）。所以手势块捕获的**按值传入的参数**会一直停在
+ * 协程启动那一刻的快照上：
+ *
+ *  - `widthPx` 按值传进去 → 横竖屏切换后（Activity 不重建，Compose 树保留），左右
+ *    半屏的分界线还停在旧宽度的一半，"左侧调亮度 / 右侧调音量"就错位了。
+ *  - 读 `state.durationMs` 的回调 lambda 同理 → 播放列表切下一集后，横向拖动进度
+ *    用的还是上一集的时长。
+ *
+ * 把这些值收进一个 `remember` 出来的稳定对象里，手势协程每次触发时现读字段，就不会
+ * 有快照问题；同时 `pointerInput(handler)` 的 key 恒定，手势协程也不会被反复重启。
+ */
+class PlayerGestureHandler {
+    /** 播放区宽度（px）。由 `onSizeChanged` 写入。 */
+    var widthPx: Float = 1f
+    /** 播放区高度（px）。 */
+    var heightPx: Float = 1f
+
+    var onSingleTap: () -> Unit = {}
+    var onDoubleTap: (Offset) -> Unit = {}
+    var onLongPressStart: () -> Unit = {}
+    var onLongPressEnd: () -> Unit = {}
+    var onSeekStart: () -> Unit = {}
+    var onSeekDelta: (deltaPx: Float, totalDeltaPx: Float) -> Unit = { _, _ -> }
+    var onSeekEnd: () -> Unit = {}
+    var onBrightnessStart: () -> Unit = {}
+    var onBrightnessDelta: (deltaPx: Float) -> Unit = {}
+    var onBrightnessEnd: () -> Unit = {}
+    var onVolumeStart: () -> Unit = {}
+    var onVolumeDelta: (deltaPx: Float) -> Unit = {}
+    var onVolumeEnd: () -> Unit = {}
+}
+
+/**
  * Combined player-region gesture handler. Routes the same touch stream into:
  *  - tap / double-tap / long-press (via [detectTapGestures])
  *  - drag with axis-and-side detection (via [awaitEachGesture])
@@ -35,24 +72,11 @@ enum class DragKind { NONE, SEEK, BRIGHTNESS, VOLUME }
  */
 fun Modifier.playerGestures(
     enabled: Boolean,
-    widthPx: Float,
-    onSingleTap: () -> Unit,
-    onDoubleTap: (Offset) -> Unit,
-    onLongPressStart: () -> Unit,
-    onLongPressEnd: () -> Unit,
-    onSeekStart: () -> Unit,
-    onSeekDelta: (deltaPx: Float, totalDeltaPx: Float) -> Unit,
-    onSeekEnd: () -> Unit,
-    onBrightnessStart: () -> Unit,
-    onBrightnessDelta: (deltaPx: Float) -> Unit,
-    onBrightnessEnd: () -> Unit,
-    onVolumeStart: () -> Unit,
-    onVolumeDelta: (deltaPx: Float) -> Unit,
-    onVolumeEnd: () -> Unit,
+    handler: PlayerGestureHandler,
 ): Modifier {
     if (!enabled) return this
     return this
-        .pointerInput(Unit) {
+        .pointerInput(handler) {
             // Strict single-tap-only contract:
             //  - onTap fires ONLY for a confirmed clean tap-up after the double-tap
             //    arbitration window. detectTapGestures handles the cancellation
@@ -72,18 +96,18 @@ fun Modifier.playerGestures(
                     try {
                         tryAwaitRelease()
                     } finally {
-                        if (longPressFlag[0]) onLongPressEnd()
+                        if (longPressFlag[0]) handler.onLongPressEnd()
                     }
                 },
-                onTap = { onSingleTap() },
-                onDoubleTap = { offset -> onDoubleTap(offset) },
+                onTap = { handler.onSingleTap() },
+                onDoubleTap = { offset -> handler.onDoubleTap(offset) },
                 onLongPress = {
                     longPressFlag[0] = true
-                    onLongPressStart()
+                    handler.onLongPressStart()
                 },
             )
         }
-        .pointerInput(Unit) {
+        .pointerInput(handler) {
             awaitEachGesture {
                 val down: PointerInputChange = awaitFirstDown(
                     requireUnconsumed = false,
@@ -92,6 +116,8 @@ fun Modifier.playerGestures(
                 val startX = down.position.x
                 val slop = viewConfiguration.touchSlop
                 val ratio = 1.35f
+                // 现读，而不是启动协程那一刻的快照。
+                val width = handler.widthPx.takeIf { it > 1f } ?: size.width.toFloat().coerceAtLeast(1f)
 
                 var kind = DragKind.NONE
                 var totalDx = 0f
@@ -102,6 +128,11 @@ fun Modifier.playerGestures(
                     val change = event.changes.firstOrNull { it.id == down.id }
                         ?: event.changes.first()
                     if (!change.pressed) break
+                    // 多指（缩放等）出现时放弃本次单指拖动，避免和系统手势打架。
+                    if (event.changes.count { it.pressed } > 1) {
+                        if (kind != DragKind.NONE) break
+                        continue
+                    }
 
                     val deltaX = change.positionChange().x
                     val deltaY = change.positionChange().y
@@ -113,12 +144,12 @@ fun Modifier.playerGestures(
                         val ay = abs(totalDy)
                         if (ax > slop && ax > ay * ratio) {
                             kind = DragKind.SEEK
-                            onSeekStart()
+                            handler.onSeekStart()
                         } else if (ay > slop && ay > ax * ratio) {
-                            kind = if (startX < widthPx / 2f) DragKind.BRIGHTNESS else DragKind.VOLUME
+                            kind = if (startX < width / 2f) DragKind.BRIGHTNESS else DragKind.VOLUME
                             when (kind) {
-                                DragKind.BRIGHTNESS -> onBrightnessStart()
-                                DragKind.VOLUME -> onVolumeStart()
+                                DragKind.BRIGHTNESS -> handler.onBrightnessStart()
+                                DragKind.VOLUME -> handler.onVolumeStart()
                                 else -> Unit
                             }
                         }
@@ -127,24 +158,24 @@ fun Modifier.playerGestures(
                     when (kind) {
                         DragKind.SEEK -> {
                             change.consume()
-                            onSeekDelta(deltaX, totalDx)
+                            handler.onSeekDelta(deltaX, totalDx)
                         }
                         DragKind.BRIGHTNESS -> {
                             change.consume()
-                            onBrightnessDelta(deltaY)
+                            handler.onBrightnessDelta(deltaY)
                         }
                         DragKind.VOLUME -> {
                             change.consume()
-                            onVolumeDelta(deltaY)
+                            handler.onVolumeDelta(deltaY)
                         }
                         DragKind.NONE -> Unit
                     }
                 }
 
                 when (kind) {
-                    DragKind.SEEK -> onSeekEnd()
-                    DragKind.BRIGHTNESS -> onBrightnessEnd()
-                    DragKind.VOLUME -> onVolumeEnd()
+                    DragKind.SEEK -> handler.onSeekEnd()
+                    DragKind.BRIGHTNESS -> handler.onBrightnessEnd()
+                    DragKind.VOLUME -> handler.onVolumeEnd()
                     DragKind.NONE -> Unit
                 }
             }

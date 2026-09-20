@@ -30,6 +30,9 @@ data class PlayerUiState(
     val controlsVisible: Boolean = true,
     val locked: Boolean = false,
 
+    /** 是否处于画中画小窗。小窗里只画视频，不画任何控件和信息区。 */
+    val inPictureInPicture: Boolean = false,
+
     val canSkipPrevious: Boolean = false,
     val canSkipNext: Boolean = false,
 

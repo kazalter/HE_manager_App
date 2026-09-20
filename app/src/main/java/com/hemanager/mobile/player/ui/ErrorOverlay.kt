@@ -32,15 +32,14 @@ import androidx.compose.ui.unit.sp
  * Error overlay: takes over the video region (not the whole screen — this lets the user
  * still see and use the info section in portrait mode while diagnosing).
  *
- * Spec-mandated actions: 重试 / 查看文件信息 / 返回 / 尝试播放下一个 / 重新扫描该文件.
- * Phase 1 wires the first three; "next video" and "rescan" become live in Phase 2/4
- * once the playlist controller and rescan endpoint are hooked up.
+ * 动作：重试 / 返回，外加可选的"下一个"与"重新扫描"。
+ * （原先还有一个"文件信息"按钮，但 onClick 是空实现，已去掉——留着只会让用户
+ * 以为是自己点错了。）
  */
 @Composable
 fun ErrorOverlay(
     message: String,
     onRetry: () -> Unit,
-    onShowFileInfo: () -> Unit,
     onBack: () -> Unit,
     onPlayNext: (() -> Unit)? = null,
     onRescan: (() -> Unit)? = null,
@@ -94,10 +93,10 @@ fun ErrorOverlay(
                     Text("重试")
                 }
                 OutlinedButton(
-                    onClick = onShowFileInfo,
+                    onClick = onBack,
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text("文件信息")
+                    Text("返回")
                 }
             }
             if (onPlayNext != null || onRescan != null) {
@@ -117,9 +116,6 @@ fun ErrorOverlay(
                         }
                     }
                 }
-            }
-            TextButton(onClick = onBack) {
-                Text("返回", color = PlayerColors.OnSurfaceVariant)
             }
         }
     }

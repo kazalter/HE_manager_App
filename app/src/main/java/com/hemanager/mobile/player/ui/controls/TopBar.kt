@@ -12,7 +12,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -31,7 +30,8 @@ import com.hemanager.mobile.player.ui.PlayerColors
  * landscape adds a top scrim behind it (caller's responsibility) since the video may be
  * white near the edges.
  *
- * The "more" entry is a placeholder — Phase 4 wires it to the bottom-sheet menu.
+ * 之前这里还有一个"更多"按钮，onClick 是空实现——点了什么都不会发生。
+ * 与其留一个假按钮，不如先去掉；真正要做菜单时再连实现一起加回来。
  */
 @Composable
 fun TopControlBar(
@@ -40,7 +40,6 @@ fun TopControlBar(
     showBack: Boolean,
     onBack: () -> Unit,
     onToggleFavorite: () -> Unit,
-    onMore: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -78,13 +77,6 @@ fun TopControlBar(
                 imageVector = if (favorite) Icons.Filled.Star else Icons.Filled.StarBorder,
                 contentDescription = if (favorite) "取消收藏" else "收藏",
                 tint = if (favorite) PlayerColors.Tertiary else Color.White,
-            )
-        }
-        GlassIconButton(onClick = onMore) {
-            Icon(
-                imageVector = Icons.Filled.MoreVert,
-                contentDescription = "更多",
-                tint = Color.White,
             )
         }
     }

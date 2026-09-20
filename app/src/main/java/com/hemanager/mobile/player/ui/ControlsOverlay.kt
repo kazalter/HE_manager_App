@@ -15,7 +15,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.hemanager.mobile.player.model.PlaybackMode
 import com.hemanager.mobile.player.model.PlayerStatus
 import com.hemanager.mobile.player.model.PlayerUiState
 import com.hemanager.mobile.player.ui.controls.BottomControlBar
@@ -29,7 +28,6 @@ fun PlayerControlsOverlay(
     isFullscreen: Boolean,
     onBack: () -> Unit,
     onToggleFavorite: () -> Unit,
-    onMore: () -> Unit,
     onTogglePlay: () -> Unit,
     onRewind: () -> Unit,
     onForward: () -> Unit,
@@ -45,9 +43,17 @@ fun PlayerControlsOverlay(
     onLockClick: () -> Unit,
     onToggleFullscreen: () -> Unit,
     onAutoHide: () -> Unit,
+    autoHideEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
-    LaunchedEffect(state.controlsVisible, state.isPlaying, state.scrubbing, state.status) {
+    LaunchedEffect(
+        state.controlsVisible,
+        state.isPlaying,
+        state.scrubbing,
+        state.status,
+        autoHideEnabled,
+    ) {
+        if (!autoHideEnabled) return@LaunchedEffect
         if (!state.controlsVisible) return@LaunchedEffect
         if (!state.isPlaying) return@LaunchedEffect
         if (state.scrubbing) return@LaunchedEffect
@@ -69,7 +75,10 @@ fun PlayerControlsOverlay(
         }
 
         AnimatedVisibility(
-            visible = state.controlsVisible && state.status !is PlayerStatus.Error && !state.locked,
+            visible = state.controlsVisible &&
+                state.status !is PlayerStatus.Error &&
+                !state.locked &&
+                !state.inPictureInPicture,
             enter = fadeIn(),
             exit = fadeOut(),
         ) {
@@ -87,7 +96,6 @@ fun PlayerControlsOverlay(
                     showBack = isFullscreen,
                     onBack = onBack,
                     onToggleFavorite = onToggleFavorite,
-                    onMore = onMore,
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .padding(top = 4.dp),

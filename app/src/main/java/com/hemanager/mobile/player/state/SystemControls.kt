@@ -3,7 +3,6 @@ package com.hemanager.mobile.player.state
 import android.app.Activity
 import android.content.Context
 import android.media.AudioManager
-import android.view.WindowManager
 
 /**
  * Wrappers around system audio + window brightness so the gesture handlers don't have to

@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem as Media3Item
 import androidx.media3.common.PlaybackException
@@ -15,7 +16,6 @@ import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
-import com.hemanager.mobile.MediaItem
 import com.hemanager.mobile.player.data.PlayerPreferences
 import com.hemanager.mobile.player.data.PlayerRepository
 import com.hemanager.mobile.player.model.AspectMode
@@ -62,6 +62,18 @@ class PlayerViewModel(
                 .setBufferDurationsMs(45_000, 120_000, 1_000, 2_000)
                 .build(),
         )
+        // 音频焦点：来电 / 别的 App 开始播放时自动暂停或降音，结束后恢复。
+        // 没有这个的话视频会和通话、导航语音、音乐同时出声。ASMR 播放服务
+        // (AsmrPlaybackService) 一直是这么配的，视频播放器之前漏了。
+        .setAudioAttributes(
+            AudioAttributes.Builder()
+                .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                .setUsage(C.USAGE_MEDIA)
+                .build(),
+            /* handleAudioFocus = */ true,
+        )
+        // 拔耳机 / 断开蓝牙时自动暂停，避免外放"公放事故"。
+        .setHandleAudioBecomingNoisy(true)
         .build()
 
     private val saver = ProgressSaver(viewModelScope, repository)
@@ -71,6 +83,9 @@ class PlayerViewModel(
     private var currentMediaId: Int = 0
     private var initialProgressSeconds: Int = 0
     private var hasMarkedWatched: Boolean = false
+
+    /** 用户是否在本次 bind 之后主动操作过播放位置（seek / 拖动 / 切集）。 */
+    private var userSeekedSinceBind: Boolean = false
 
     /** Speed before long-press 2x kicked in. -1 → not boosted. */
     private var savedSpeedBeforeBoost: Float = -1f
@@ -167,23 +182,35 @@ class PlayerViewModel(
             )
         }
 
+        userSeekedSinceBind = false
         val url = repository.streamUrl(mediaId)
-        player.setMediaItem(Media3Item.fromUri(Uri.parse(url)))
+        // 起播位置一次性带进 setMediaItem，而不是 prepare() 之后再 seekTo：
+        // 后者会先在 0 处起播一小段再跳，产生一次多余的缓冲和画面闪跳。
+        player.setMediaItem(
+            Media3Item.fromUri(Uri.parse(url)),
+            this.initialProgressSeconds * 1000L,
+        )
         player.prepare()
         player.playWhenReady = true
-        if (this.initialProgressSeconds > 0) {
-            player.seekTo(this.initialProgressSeconds * 1000L)
-        }
 
         // Refresh from server so a more recent progress (saved on another device)
         // overrides the value passed via Intent extras.
         viewModelScope.launch {
             val media = repository.loadMedia(mediaId)
             _uiState.update { it.copy(media = media) }
-            if (!restart && media != null && media.progress > this@PlayerViewModel.initialProgressSeconds) {
+            // 只有在用户还没自己动过进度时才接受服务端的位置——否则慢网络下这个
+            // 请求回来会把用户刚拖到的位置又拽回去。
+            if (
+                !restart &&
+                !userSeekedSinceBind &&
+                currentMediaId == mediaId &&
+                media != null &&
+                media.progress > this@PlayerViewModel.initialProgressSeconds
+            ) {
                 player.seekTo(media.progress * 1000L)
                 this@PlayerViewModel.initialProgressSeconds = media.progress
                 saver.bind(mediaId, media.progress)
+                syncPositionFromPlayer()
             }
         }
 
@@ -204,12 +231,18 @@ class PlayerViewModel(
     }
 
     fun seekTo(positionMs: Long) {
+        userSeekedSinceBind = true
         player.seekTo(positionMs.coerceAtLeast(0L))
+        // 暂停状态下 ticker 是 1s 一拍，不立刻同步的话进度条会"迟一拍"才跳过去。
+        syncPositionFromPlayer()
     }
 
     fun seekBy(deltaMs: Long) {
-        val target = (player.currentPosition + deltaMs).coerceAtLeast(0L)
-        player.seekTo(target)
+        val duration = player.duration
+        val target = (player.currentPosition + deltaMs)
+            .coerceAtLeast(0L)
+            .let { if (duration > 0L) it.coerceAtMost(duration) else it }
+        seekTo(target)
     }
 
     fun setScrubbing(active: Boolean) {
@@ -283,7 +316,7 @@ class PlayerViewModel(
     }
 
     fun cycleAspectMode(): AspectMode {
-        val all = AspectMode.values()
+        val all = AspectMode.entries
         val next = all[(_uiState.value.aspectMode.ordinal + 1) % all.size]
         setAspectMode(next)
         return next
@@ -307,16 +340,26 @@ class PlayerViewModel(
         val current = _uiState.value
         if (current.subtitlesEnabled) {
             selectSubtitleTrack(null)
-        } else {
-            // Re-enable: prefer the previously selected language if available, else first.
-            val target = current.subtitleTracks.firstOrNull { it.isSelected }
-                ?: current.subtitleTracks.firstOrNull()
+            return
+        }
+        // 重新打开：优先记住的语言 → 已选中的 → 第一条。
+        viewModelScope.launch {
+            val preferred = preferences.lastSubtitleLanguage.first()
+            val tracks = _uiState.value.subtitleTracks
+            val target = tracks.firstOrNull { it.language != null && it.language == preferred }
+                ?: tracks.firstOrNull { it.isSelected }
+                ?: tracks.firstOrNull()
             if (target != null) selectSubtitleTrack(target)
         }
     }
 
     fun setLocked(locked: Boolean) {
         _uiState.update { it.copy(locked = locked) }
+    }
+
+    /** 画中画进出。小窗内不显示控件，手势也一并停用。 */
+    fun setPictureInPicture(active: Boolean) {
+        _uiState.update { it.copy(inPictureInPicture = active, controlsVisible = !active) }
     }
 
     /**
@@ -332,8 +375,8 @@ class PlayerViewModel(
      * persisted right away (instead of waiting for the next 5 s tick).
      */
     fun commitScrub(positionMs: Long) {
-        seekTo(positionMs)
         _uiState.update { it.copy(scrubbing = false) }
+        seekTo(positionMs)
         viewModelScope.launch { saver.flushNow() }
     }
 
@@ -349,7 +392,7 @@ class PlayerViewModel(
     }
 
     fun restartFromBeginning() {
-        player.seekTo(0L)
+        seekTo(0L)
         player.play()
         viewModelScope.launch { saver.flushNow() }
     }
@@ -398,10 +441,13 @@ class PlayerViewModel(
                 )
             }
 
+            userSeekedSinceBind = false
             val url = repository.streamUrl(newMediaId)
-            player.setMediaItem(Media3Item.fromUri(Uri.parse(url)))
+            player.setMediaItem(
+                Media3Item.fromUri(Uri.parse(url)),
+                resumeSeconds * 1000L,
+            )
             player.prepare()
-            if (resumeSeconds > 0) player.seekTo(resumeSeconds * 1000L)
             player.playWhenReady = true
         }
     }
@@ -421,29 +467,55 @@ class PlayerViewModel(
         }
     }
 
-    fun onUserLeftActivity() {
-        // Called from Activity onStop / onPause when finishing or backgrounding.
+    /**
+     * Activity 进入后台（onStop）时调用。
+     *
+     * 之前这里只 flush 进度、播放器继续跑：退到桌面后视频的声音还在响，进度也继续
+     * 前进，而播放器既没有 MediaSession 也没有通知栏控件，用户只能再打开 App 才能停。
+     * 现在统一暂停（画中画模式下除外，那时窗口仍然可见），并停掉轮询协程。
+     */
+    fun onActivityStopped(keepPlaying: Boolean = false) {
         viewModelScope.launch { saver.flushNow() }
+        if (keepPlaying) return
+        player.pause()
+        positionTickJob?.cancel()
+        positionTickJob = null
     }
 
+    /** Activity 回到前台（onStart）。只恢复轮询，不自动续播——避免"意外出声"。 */
+    fun onActivityStarted() {
+        if (currentMediaId > 0 && positionTickJob?.isActive != true) {
+            startPositionTicker()
+        }
+    }
+
+    /**
+     * 进度轮询。播放中 500ms 一拍（进度条平滑），暂停时降到 2s 一拍——暂停时位置
+     * 不会自己走，高频轮询只是白白唤醒主线程、每拍都发一次 StateFlow 触发重组。
+     * seek 类操作会额外调一次 [syncPositionFromPlayer] 立刻把 UI 追平。
+     */
     private fun startPositionTicker() {
         positionTickJob?.cancel()
         positionTickJob = viewModelScope.launch(Dispatchers.Main) {
             while (isActive) {
-                if (player.duration > 0L) {
-                    val pos = player.currentPosition
-                    val dur = player.duration
-                    val buf = player.bufferedPosition
-                    saver.report(pos, dur)
-                    _uiState.update {
-                        if (it.scrubbing) it
-                        else it.copy(positionMs = pos, durationMs = dur, bufferedPositionMs = buf)
-                    }
-                    maybeMarkWatched(pos, dur)
-                }
-                delay(500L)
+                syncPositionFromPlayer()
+                delay(if (player.isPlaying) 500L else 2_000L)
             }
         }
+    }
+
+    private fun syncPositionFromPlayer() {
+        val dur = player.duration
+        if (dur <= 0L) return
+        val pos = player.currentPosition
+        val buf = player.bufferedPosition
+        saver.report(pos, dur)
+        _uiState.update {
+            if (it.scrubbing) it
+            else if (it.positionMs == pos && it.durationMs == dur && it.bufferedPositionMs == buf) it
+            else it.copy(positionMs = pos, durationMs = dur, bufferedPositionMs = buf)
+        }
+        maybeMarkWatched(pos, dur)
     }
 
     private fun maybeMarkWatched(positionMs: Long, durationMs: Long) {

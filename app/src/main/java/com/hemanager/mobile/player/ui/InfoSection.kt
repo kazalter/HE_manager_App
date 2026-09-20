@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,10 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
-import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Visibility
@@ -39,20 +38,17 @@ import java.util.Locale
  * Portrait-mode info section. Mirrors the rounded-card style used elsewhere in the app
  * (see MainActivity.cardSurface).
  *
- * Phase 1 surfaces: title, view-status pill, tags chip row, favorite / add-tag /
- * mark-watched action row, file info (extension + duration + progress %), and stub cards
- * for "same folder" and "current playlist" — these latter two are wired with real data
- * in Phase 2.
+ * 展示：标题、观看状态、标签、收藏 / 标记已看、文件信息。
  *
- * Author / source / library / file path / file size / resolution: backend already stores
- * those, but they aren't yet on the client [MediaItem]. Phase 2 extends MediaItem to
- * read them; Phase 1 hides those rows so we don't show empty placeholders.
+ * 这里原本还有两张"同目录视频""当前播放列表"的占位卡片，正文直接写着
+ * "Phase 2 接入后这里会列出…"——那是给开发者看的待办，不该出现在用户界面里，
+ * 已移除。同理移除了空实现的"添加标签"按钮。真正做这些功能时再连实现一起加回来。
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun PortraitInfoSection(
     state: PlayerUiState,
     onToggleFavorite: () -> Unit,
-    onAddTag: () -> Unit,
     onToggleWatched: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -97,12 +93,6 @@ fun PortraitInfoSection(
                     onClick = onToggleFavorite,
                 )
                 ActionTile(
-                    icon = Icons.Filled.AddCircleOutline,
-                    tint = PlayerColors.OnSurface,
-                    label = "添加标签",
-                    onClick = onAddTag,
-                )
-                ActionTile(
                     icon = if (media?.viewStatus == "viewed") Icons.Filled.CheckCircle else Icons.Filled.Visibility,
                     tint = if (media?.viewStatus == "viewed") PlayerColors.Secondary else PlayerColors.OnSurface,
                     label = if (media?.viewStatus == "viewed") "已看完" else "标记已看",
@@ -117,11 +107,14 @@ fun PortraitInfoSection(
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("标签", color = PlayerColors.OnSurfaceVariant, fontSize = 13.sp)
                     Spacer(modifier = Modifier.height(10.dp))
-                    Row(
+                    // FlowRow：标签多了要换行。之前是普通 Row，第 4~5 个标签
+                    // 起就被挤出屏幕右边看不见了。
+                    FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        media.tags.take(8).forEach { tag ->
+                        media.tags.take(12).forEach { tag ->
                             TagChip(tag.name)
                         }
                     }
@@ -142,19 +135,6 @@ fun PortraitInfoSection(
             }
         }
 
-        // Same-folder list placeholder.
-        StubListCard(
-            icon = Icons.Filled.Folder,
-            title = "同目录视频",
-            hint = "Phase 2 接入后这里会列出当前视频所在文件夹下的其它视频",
-        )
-
-        // Current playlist placeholder.
-        StubListCard(
-            icon = Icons.AutoMirrored.Filled.PlaylistPlay,
-            title = "当前播放列表",
-            hint = "Phase 2 会按你打开播放器时所在的来源列表加载，并在这里高亮当前正在播的视频",
-        )
     }
 }
 
@@ -226,26 +206,6 @@ private fun InfoRow(label: String, value: String) {
         Text(text = label, color = PlayerColors.OnSurfaceVariant, fontSize = 13.sp)
         Spacer(modifier = Modifier.weight(1f))
         Text(text = value, color = PlayerColors.OnSurface, fontSize = 13.sp)
-    }
-}
-
-@Composable
-private fun StubListCard(icon: ImageVector, title: String, hint: String) {
-    Card {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(imageVector = icon, contentDescription = null, tint = PlayerColors.OnSurfaceVariant)
-                Spacer(modifier = Modifier.height(0.dp))
-                Text(
-                    text = "  $title",
-                    color = PlayerColors.OnSurface,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp,
-                )
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(text = hint, color = PlayerColors.OnSurfaceVariant, fontSize = 12.sp)
-        }
     }
 }
 

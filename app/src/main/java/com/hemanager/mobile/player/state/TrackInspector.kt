@@ -34,7 +34,18 @@ object TrackInspector {
                     id = "$groupIdx-$trackIdx",
                     groupIndex = groupIdx,
                     trackIndex = trackIdx,
-                    label = formatLabel(format.label, format.language, group.type, audio.size + subs.size + 1),
+                    // 序号按各自类别单独计数：之前用 audio.size + subs.size + 1，
+                    // 结果视频里有 2 条字幕时第一条音轨会被标成"音轨 3"。
+                    label = formatLabel(
+                        format.label,
+                        format.language,
+                        group.type,
+                        when (group.type) {
+                            C.TRACK_TYPE_AUDIO -> audio.size + 1
+                            C.TRACK_TYPE_TEXT -> subs.size + 1
+                            else -> 1
+                        },
+                    ),
                     language = format.language,
                     isSelected = group.isTrackSelected(trackIdx),
                 )
