@@ -1,0 +1,14 @@
+.DS_Store
+
+# Xcode per-user state and local build products
+xcuserdata/
+DerivedData/
+build/
+*.xcuserstate
+
+# Swift Package Manager local state
+.swiftpm/
+Packages/
+
+# Test output
+Tests/.build/
