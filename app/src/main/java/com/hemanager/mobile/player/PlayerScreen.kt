@@ -78,14 +78,28 @@ fun PlayerScreen(
     val scope = rememberCoroutineScope()
 
     val resumeAsk = remember { ResumeAskTracker() }
-    LaunchedEffect(state.media?.id, state.durationMs) {
+    LaunchedEffect(state.media?.id, state.durationMs, state.inPictureInPicture) {
         val media = state.media ?: return@LaunchedEffect
+        // 如果当前处于画中画小窗模式，直接标记已询问并跳过弹窗，
+        // 避免小窗内被模态 Dialog 遮挡且无法点击；退出画中画回到全屏时也不会突兀弹窗打断播放。
+        if (state.inPictureInPicture) {
+            resumeAsk.markAsked(media.id)
+            return@LaunchedEffect
+        }
         val durationSec = (state.durationMs / 1000L).toInt().takeIf { it > 0 } ?: media.duration
         if (durationSec <= 0) return@LaunchedEffect
         val nearEnd = media.progress > 0 && media.progress.toFloat() / durationSec >= 0.85f
         if (nearEnd && !resumeAsk.askedFor(media.id)) {
             resumeAsk.markAsked(media.id)
             resumeAsk.show(media.progress)
+        }
+    }
+
+    // 用户在弹窗显示或待处理时按下 Home 切入画中画：自动关闭弹窗，默认继续上次进度播放
+    LaunchedEffect(state.inPictureInPicture) {
+        if (state.inPictureInPicture && resumeAsk.pending != null) {
+            resumeAsk.dismiss()
+            viewModel.resumeFromSaved()
         }
     }
 
@@ -130,18 +144,20 @@ fun PlayerScreen(
             }
         }
 
-        resumeAsk.pending?.let { resumeAt ->
-            ResumeDialog(
-                resumeAtSeconds = resumeAt,
-                onContinue = {
-                    resumeAsk.dismiss()
-                    viewModel.resumeFromSaved()
-                },
-                onRestart = {
-                    resumeAsk.dismiss()
-                    viewModel.restartFromBeginning()
-                },
-            )
+        if (!state.inPictureInPicture) {
+            resumeAsk.pending?.let { resumeAt ->
+                ResumeDialog(
+                    resumeAtSeconds = resumeAt,
+                    onContinue = {
+                        resumeAsk.dismiss()
+                        viewModel.resumeFromSaved()
+                    },
+                    onRestart = {
+                        resumeAsk.dismiss()
+                        viewModel.restartFromBeginning()
+                    },
+                )
+            }
         }
     }
 }
@@ -190,6 +206,17 @@ private fun VideoFrame(
         if (barIndicator != null) {
             delay(800L)
             barIndicator = null
+        }
+    }
+
+    LaunchedEffect(state.inPictureInPicture) {
+        if (state.inPictureInPicture) {
+            showSpeedSheet = false
+            showAspectSheet = false
+            showTracksSheet = false
+            seekIndicator = null
+            barIndicator = null
+            doubleTapVisible = false
         }
     }
 
@@ -407,32 +434,34 @@ private fun VideoFrame(
             modifier = Modifier.fillMaxSize(),
         )
 
-        if (showSpeedSheet) {
-            SpeedSheet(
-                currentSpeed = state.playbackSpeed,
-                onPick = { viewModel.setSpeed(it) },
-                onDismiss = { showSpeedSheet = false },
-            )
-        }
-        if (showAspectSheet) {
-            AspectModeSheet(
-                current = state.aspectMode,
-                onPick = {
-                    viewModel.setAspectMode(it)
-                    Toast.makeText(context, it.label, Toast.LENGTH_SHORT).show()
-                },
-                onDismiss = { showAspectSheet = false },
-            )
-        }
-        if (showTracksSheet) {
-            TracksSheet(
-                audioTracks = state.audioTracks,
-                subtitleTracks = state.subtitleTracks,
-                subtitlesEnabled = state.subtitlesEnabled,
-                onPickAudio = { viewModel.selectAudioTrack(it) },
-                onPickSubtitle = { viewModel.selectSubtitleTrack(it) },
-                onDismiss = { showTracksSheet = false },
-            )
+        if (!state.inPictureInPicture) {
+            if (showSpeedSheet) {
+                SpeedSheet(
+                    currentSpeed = state.playbackSpeed,
+                    onPick = { viewModel.setSpeed(it) },
+                    onDismiss = { showSpeedSheet = false },
+                )
+            }
+            if (showAspectSheet) {
+                AspectModeSheet(
+                    current = state.aspectMode,
+                    onPick = {
+                        viewModel.setAspectMode(it)
+                        Toast.makeText(context, it.label, Toast.LENGTH_SHORT).show()
+                    },
+                    onDismiss = { showAspectSheet = false },
+                )
+            }
+            if (showTracksSheet) {
+                TracksSheet(
+                    audioTracks = state.audioTracks,
+                    subtitleTracks = state.subtitleTracks,
+                    subtitlesEnabled = state.subtitlesEnabled,
+                    onPickAudio = { viewModel.selectAudioTrack(it) },
+                    onPickSubtitle = { viewModel.selectSubtitleTrack(it) },
+                    onDismiss = { showTracksSheet = false },
+                )
+            }
         }
 
         // Lock overlay sits above everything else so when locked, no other gesture

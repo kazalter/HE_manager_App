@@ -17,6 +17,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
 import com.hemanager.mobile.ApiClient
 import com.hemanager.mobile.player.state.SystemControls
@@ -79,6 +81,8 @@ class PlayerActivity : ComponentActivity() {
 
         val systemControls = SystemControls(this)
         setupOrientationUnlock()
+        playerViewModel.player.addListener(pipListener)
+        updatePipParams()
 
         setContent {
             MaterialTheme(colorScheme = PlayerColorScheme) {
@@ -105,6 +109,7 @@ class PlayerActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         applySystemBarsForOrientation(resources.configuration.orientation)
+        updatePipParams()
     }
 
     override fun onStop() {
@@ -118,24 +123,28 @@ class PlayerActivity : ComponentActivity() {
     override fun onDestroy() {
         orientationUnlocker?.disable()
         orientationUnlocker = null
+        playerViewModel.player.removeListener(pipListener)
         super.onDestroy()
     }
 
-    /**
-     * 用户按 Home / 切换任务时进入画中画。
-     *
-     * Manifest 早就声明了 `supportsPictureInPicture`，但一直没有任何代码调用
-     * [enterPictureInPictureMode]，等于白声明。这里补上：只有正在播放时才进，
-     * 画面比例取视频真实比例（越界时回落 16:9，系统对 PiP 比例有 0.42~2.39 的限制）。
-     */
-    override fun onUserLeaveHint() {
-        super.onUserLeaveHint()
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-        if (isFinishing || isInPictureInPictureMode) return
-        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) return
-        if (!playerViewModel.player.isPlaying) return
+    private val pipListener = object : Player.Listener {
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            updatePipParams()
+        }
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            updatePipParams()
+        }
+        override fun onVideoSizeChanged(videoSize: VideoSize) {
+            updatePipParams()
+        }
+    }
 
-        val size = playerViewModel.player.videoSize
+    private fun updatePipParams() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) return
+        val player = playerViewModel.player
+        val isActivelyPlaying = player.isPlaying || (player.playWhenReady && player.playbackState != Player.STATE_ENDED)
+        val size = player.videoSize
         val ratio = if (size.width > 0 && size.height > 0) {
             val raw = size.width.toFloat() / size.height.toFloat()
             if (raw in 0.45f..2.35f) Rational(size.width, size.height) else Rational(16, 9)
@@ -143,9 +152,41 @@ class PlayerActivity : ComponentActivity() {
             Rational(16, 9)
         }
         runCatching {
-            enterPictureInPictureMode(
-                PictureInPictureParams.Builder().setAspectRatio(ratio).build(),
-            )
+            val builder = PictureInPictureParams.Builder().setAspectRatio(ratio)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                builder.setAutoEnterEnabled(isActivelyPlaying)
+            }
+            setPictureInPictureParams(builder.build())
+        }
+    }
+
+    /**
+     * 用户按 Home / 切换任务时进入画中画。
+     *
+     * 只有正在播放或准备就绪播放且未结束时才进，画面比例取视频真实比例（越界时回落 16:9，系统对 PiP 比例有 0.42~2.39 的限制）。
+     */
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        if (isFinishing || isInPictureInPictureMode) return
+        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) return
+        val player = playerViewModel.player
+        val isActivelyPlaying = player.isPlaying || (player.playWhenReady && player.playbackState != Player.STATE_ENDED)
+        if (!isActivelyPlaying) return
+
+        val size = player.videoSize
+        val ratio = if (size.width > 0 && size.height > 0) {
+            val raw = size.width.toFloat() / size.height.toFloat()
+            if (raw in 0.45f..2.35f) Rational(size.width, size.height) else Rational(16, 9)
+        } else {
+            Rational(16, 9)
+        }
+        runCatching {
+            val builder = PictureInPictureParams.Builder().setAspectRatio(ratio)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                builder.setAutoEnterEnabled(true)
+            }
+            enterPictureInPictureMode(builder.build())
         }
     }
 

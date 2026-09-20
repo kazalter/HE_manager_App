@@ -9,6 +9,7 @@ import coil.memory.MemoryCache
 import coil.request.CachePolicy
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.foundation.background
@@ -93,12 +94,17 @@ class MainActivity : ComponentActivity(), HostUiController {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = android.graphics.Color.rgb(8, 9, 12)
         window.navigationBarColor = android.graphics.Color.rgb(8, 9, 12)
 
         // 刘海/挖孔屏：永远不让内容延伸进 cutout 区域。各 OEM 默认值不统一（状态栏隐藏后内容
         // 可能滑到挖孔下面），显式钉死成 NEVER，挖孔区会保留一条背景色窄边而不是覆盖 UI。
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+        // Android 15 (API 35+) 强制 edge-to-edge，使用 NEVER 会与 WindowInsetsAnimation 冲突
+        // 导致软键盘 insets 计算异常，仅在 Android 15 以下系统设置。
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P &&
+            android.os.Build.VERSION.SDK_INT < 35
+        ) {
             window.attributes = window.attributes.apply {
                 layoutInDisplayCutoutMode =
                     android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_NEVER

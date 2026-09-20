@@ -8,6 +8,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -44,12 +46,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -92,6 +96,7 @@ fun LoginScreen(
 ) {
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val configuration = LocalConfiguration.current
     val compact = configuration.screenHeightDp < 700
     val pageVerticalPadding = if (compact) 22.dp else 34.dp
@@ -100,6 +105,7 @@ fun LoginScreen(
     val fieldGap = if (compact) 12.dp else 18.dp
     val ctaGap = if (compact) 16.dp else 22.dp
     val bottomGap = if (compact) 18.dp else 28.dp
+    val serverFocus = remember { FocusRequester() }
     val userFocus = remember { FocusRequester() }
     val passFocus = remember { FocusRequester() }
 
@@ -154,6 +160,7 @@ fun LoginScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp, vertical = pageVerticalPadding)
                 .widthIn(max = 560.dp),
@@ -200,7 +207,11 @@ fun LoginScreen(
                 onValueChange = { server = it },
                 keyboardType = KeyboardType.Uri,
                 imeAction = ImeAction.Next,
-                onImeAction = { userFocus.requestFocus() },
+                onImeAction = {
+                    userFocus.requestFocus()
+                    keyboardController?.show()
+                },
+                focusRequester = serverFocus,
             )
             Spacer(Modifier.height(fieldGap))
             ServerHistoryPanel(
@@ -217,7 +228,10 @@ fun LoginScreen(
                 value = username,
                 onValueChange = { username = it },
                 imeAction = ImeAction.Next,
-                onImeAction = { passFocus.requestFocus() },
+                onImeAction = {
+                    passFocus.requestFocus()
+                    keyboardController?.show()
+                },
                 focusRequester = userFocus,
             )
             Spacer(Modifier.height(fieldGap))
@@ -467,8 +481,24 @@ private fun TerminalField(
     onImeAction: () -> Unit = {},
     focusRequester: FocusRequester? = null,
 ) {
-    Column {
-        Row(verticalAlignment = Alignment.Bottom) {
+    val actualFocusRequester = focusRequester ?: remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    var isFocused by remember { mutableStateOf(false) }
+    val shape = CutCornerShape(8.dp)
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            verticalAlignment = Alignment.Bottom,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                ) {
+                    actualFocusRequester.requestFocus()
+                    keyboardController?.show()
+                }
+        ) {
             Text(
                 text = "//",
                 color = HeColors.OpWhiteMuted,
@@ -479,7 +509,7 @@ private fun TerminalField(
             )
             Text(
                 text = label,
-                color = HeColors.Yellow,
+                color = if (isFocused) HeColors.Yellow else HeColors.Yellow.copy(alpha = 0.85f),
                 fontFamily = Oxanium,
                 fontWeight = FontWeight.Bold,
                 fontSize = 10.5.sp,
@@ -487,7 +517,7 @@ private fun TerminalField(
             )
             Text(
                 text = labelCN,
-                color = HeColors.OpWhiteMuted,
+                color = if (isFocused) HeColors.OpWhite else HeColors.OpWhiteMuted,
                 fontFamily = NotoSansSC,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 10.5.sp,
@@ -495,22 +525,17 @@ private fun TerminalField(
                 modifier = Modifier.padding(start = 6.dp),
             )
             Spacer(Modifier.weight(1f))
-            CodeChip(code, color = HeColors.OpWhiteFaint)
+            CodeChip(code, color = if (isFocused) HeColors.Yellow else HeColors.OpWhiteFaint)
         }
         Spacer(Modifier.height(6.dp))
-        val shape = CutCornerShape(8.dp)
-        val fieldModifier = Modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .background(HeColors.Ink.copy(alpha = 0.92f))
-            .border(1.dp, HeColors.HairlineMid, shape)
-            .padding(horizontal = 14.dp, vertical = 12.dp)
-            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
 
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
-            modifier = fieldModifier,
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(actualFocusRequester)
+                .onFocusChanged { isFocused = it.isFocused },
             singleLine = true,
             textStyle = LocalTextStyle.current.copy(
                 color = HeColors.OpWhite,
@@ -530,6 +555,23 @@ private fun TerminalField(
                 onDone = { onImeAction() },
                 onGo = { onImeAction() },
             ),
+            decorationBox = { innerTextField ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(shape)
+                        .background(HeColors.Ink.copy(alpha = 0.92f))
+                        .border(
+                            width = 1.dp,
+                            color = if (isFocused) HeColors.Yellow else HeColors.HairlineMid,
+                            shape = shape,
+                        )
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    innerTextField()
+                }
+            },
         )
     }
 }
