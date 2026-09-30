@@ -12,11 +12,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.hemanager.mobile.ui.theme.CutCornerShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.hemanager.mobile.ui.theme.HeColors
 
 /**
- * 切角方形头像（不要做成圆形）。
+ * 平滑圆角高质感头像。
  *
  * @param ring true 时外圈是黄色高亮（用于自己的 avatar），false 时是 HairlineMid 灰描边。
  */
@@ -28,8 +28,8 @@ fun OpAvatar(
     ring: Boolean = false,
     contentDescription: String? = null,
 ) {
-    val cut = (size.value * 0.16f).dp
-    val shape = CutCornerShape(cut)
+    val cornerRadius = (size.value * 0.28f).dp
+    val shape = RoundedCornerShape(cornerRadius)
     val ringColor: Color = if (ring) HeColors.Yellow else HeColors.HairlineMid
 
     Box(

@@ -36,35 +36,36 @@ import com.hemanager.mobile.ui.theme.Oxanium
 fun Slash(
     cn: String,
     en: String? = null,
-    fontSize: TextUnit = 12.sp,
+    fontSize: TextUnit = 13.5.sp,
     color: Color = HeColors.OpWhiteSoft,
     modifier: Modifier = Modifier,
 ) {
-    Row(modifier, verticalAlignment = Alignment.Bottom) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = "//",
             color = HeColors.Yellow,
             fontFamily = GeistMono,
             fontSize = (fontSize.value + 1f).sp,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Bold,
         )
-        Spacer(Modifier.width(5.dp))
+        Spacer(Modifier.width(6.dp))
         Text(
             text = cn,
             color = color,
             fontFamily = NotoSansSC,
             fontSize = fontSize,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = 0.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.2.sp,
         )
         if (en != null) {
-            Spacer(Modifier.width(4.dp))
+            Spacer(Modifier.width(6.dp))
             Text(
                 text = en,
                 color = HeColors.OpWhiteMuted,
                 fontFamily = Oxanium,
-                fontSize = (fontSize.value - 1.5f).sp,
-                letterSpacing = 1.5.sp,
+                fontSize = (fontSize.value * 0.85f).coerceAtLeast(11.5f).sp,
+                letterSpacing = 1.2.sp,
+                fontWeight = FontWeight.SemiBold,
             )
         }
     }
@@ -73,7 +74,7 @@ fun Slash(
 /**
  * 双层中英标题：上 NotoSansSC Black 中文，下 Oxanium SemiBold 大写英文小字。
  *
- * @param sizeSp 中文字号；英文字号自动取 32%。
+ * @param sizeSp 中文字号；英文字号自动取 36%，保底 12.5sp。
  */
 @Composable
 fun OpTitle(
@@ -89,18 +90,18 @@ fun OpTitle(
             fontFamily = NotoSansSC,
             fontWeight = FontWeight.Black,
             fontSize = sizeSp,
-            letterSpacing = 0.sp,
-            lineHeight = sizeSp,
+            letterSpacing = (-0.3).sp,
+            lineHeight = (sizeSp.value * 1.12f).sp,
         )
         if (en != null) {
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(4.dp))
             Text(
                 text = en,
-                color = HeColors.OpWhiteMuted,
+                color = HeColors.YellowDim,
                 fontFamily = Oxanium,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = (sizeSp.value * 0.32f).sp,
-                letterSpacing = 3.5.sp,
+                fontWeight = FontWeight.Bold,
+                fontSize = (sizeSp.value * 0.36f).coerceAtLeast(12.5f).sp,
+                letterSpacing = 2.sp,
             )
         }
     }
@@ -109,13 +110,13 @@ fun OpTitle(
 /**
  * 装饰代码 chip：`VID-A001` / `UID:1416-176-661` / `@handle` 等。
  *
- * GeistMono Medium 9.5sp 默认 muted 灰；hero 上常用 Yellow。
+ * 现代清晰排版，默认 12sp。
  */
 @Composable
 fun CodeChip(
     text: String,
     color: Color = HeColors.OpWhiteMuted,
-    fontSize: TextUnit = 10.5.sp,
+    fontSize: TextUnit = 12.sp,
     modifier: Modifier = Modifier,
 ) {
     Text(
@@ -124,7 +125,7 @@ fun CodeChip(
         fontFamily = GeistMono,
         fontWeight = FontWeight.SemiBold,
         fontSize = fontSize,
-        letterSpacing = 0.8.sp,
+        letterSpacing = 0.5.sp,
         modifier = modifier,
     )
 }

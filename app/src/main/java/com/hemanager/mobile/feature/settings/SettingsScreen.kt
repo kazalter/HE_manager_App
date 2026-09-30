@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -131,12 +132,12 @@ internal fun SettingsScreen(
                 )
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Slash(cn = "设置", en = "Settings", fontSize = 11.sp)
+                    Slash(cn = "设置", en = "Settings", fontSize = 13.sp)
                     Text(
                         text = "本机偏好与连接配置",
                         color = HeColors.OpWhiteMuted,
                         fontFamily = Geist,
-                        fontSize = 12.sp,
+                        fontSize = 13.sp,
                     )
                 }
                 CodeChip("v$versionName", color = HeColors.Yellow)
@@ -293,15 +294,15 @@ private fun SettingsGroup(
     icon: ImageVector,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val shape = CutCornerShape(12.dp)
+    val shape = RoundedCornerShape(16.dp)
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
             .background(HeColors.Panel.copy(alpha = 0.94f))
             .border(1.dp, HeColors.HairlineMid, shape)
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
@@ -311,7 +312,7 @@ private fun SettingsGroup(
                 modifier = Modifier.size(18.dp),
             )
             Spacer(Modifier.width(8.dp))
-            Slash(cn = title, en = en, fontSize = 10.5.sp)
+            Slash(cn = title, en = en, fontSize = 12.5.sp)
         }
         content()
     }
@@ -330,7 +331,7 @@ private fun SettingCaption(
                 color = HeColors.OpWhite,
                 fontFamily = NotoSansSC,
                 fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
+                fontSize = 15.sp,
                 modifier = Modifier.weight(1f),
             )
             Text(
@@ -338,7 +339,7 @@ private fun SettingCaption(
                 color = HeColors.Yellow,
                 fontFamily = GeistMono,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 12.sp,
+                fontSize = 13.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -347,8 +348,8 @@ private fun SettingCaption(
             text = description,
             color = HeColors.OpWhiteMuted,
             fontFamily = Geist,
-            fontSize = 12.sp,
-            lineHeight = 17.sp,
+            fontSize = 12.5.sp,
+            lineHeight = 18.sp,
         )
     }
 }
@@ -359,7 +360,7 @@ private fun ServerOptionRow(
     active: Boolean,
     onClick: () -> Unit,
 ) {
-    val shape = CutCornerShape(9.dp)
+    val shape = RoundedCornerShape(12.dp)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -367,7 +368,7 @@ private fun ServerOptionRow(
             .background(if (active) HeColors.YellowSoft else Color.Transparent)
             .border(1.dp, if (active) HeColors.Yellow.copy(alpha = 0.45f) else HeColors.HairlineMid, shape)
             .clickable(enabled = !active) { onClick() }
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = 14.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -375,7 +376,7 @@ private fun ServerOptionRow(
             color = if (active) HeColors.OpWhite else HeColors.OpWhiteSoft,
             fontFamily = GeistMono,
             fontWeight = FontWeight.SemiBold,
-            fontSize = 11.5.sp,
+            fontSize = 13.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
@@ -412,7 +413,7 @@ private fun ToggleRow(
             color = HeColors.OpWhite,
             fontFamily = NotoSansSC,
             fontWeight = FontWeight.Bold,
-            fontSize = 14.sp,
+            fontSize = 15.sp,
             modifier = Modifier.weight(1f),
         )
         Switch(

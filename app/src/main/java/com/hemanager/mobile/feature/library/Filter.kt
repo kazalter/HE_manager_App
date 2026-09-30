@@ -85,7 +85,6 @@ internal fun LibraryHeaderV2(
     onMenu: () -> Unit,
     onRefresh: () -> Unit
 ) {
-    // HE OP TopHud：菜单 + Slash 标识 + viewMode + refresh
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -96,15 +95,34 @@ internal fun LibraryHeaderV2(
                 contentDescription = "打开侧边栏",
                 onClick = onMenu,
             )
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
-                com.hemanager.mobile.ui.op.Slash(cn = "媒体库", en = "Library")
-                Spacer(Modifier.height(4.dp))
-                com.hemanager.mobile.ui.op.OpTitle(
-                    cn = "媒体库",
-                    en = "LIBRARY · OPERATOR ARCHIVE",
-                    sizeSp = 22.sp,
+                Text(
+                    text = "媒体库",
+                    color = com.hemanager.mobile.ui.theme.HeColors.OpWhite,
+                    fontFamily = com.hemanager.mobile.ui.theme.NotoSansSC,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 22.sp,
+                    letterSpacing = (-0.2).sp,
                 )
+                Spacer(Modifier.height(2.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier
+                            .size(5.dp)
+                            .clip(CircleShape)
+                            .background(com.hemanager.mobile.ui.theme.HeColors.Yellow)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = "ARCHIVE · EXPLORER",
+                        color = com.hemanager.mobile.ui.theme.HeColors.YellowDim,
+                        fontFamily = com.hemanager.mobile.ui.theme.Oxanium,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.5.sp,
+                        letterSpacing = 1.6.sp,
+                    )
+                }
             }
             if (!galleryMode) {
                 ViewModeIconButtonV2(viewMode = viewMode, onSelect = onViewModeSelected)
@@ -234,23 +252,22 @@ internal fun SearchAndFilterPanelV2(
     val activeCount = listOf(selectedValue, selectedStatusValue).count { it.isNotBlank() }
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        // HE OP 搜索框：切角 + hairline border + GeistMono 输入 + 黄色光标
-        val searchShape = com.hemanager.mobile.ui.theme.CutCornerShape(8.dp)
+        val searchShape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 46.dp)
+                .heightIn(min = 48.dp)
                 .clip(searchShape)
                 .background(com.hemanager.mobile.ui.theme.HeColors.Panel)
                 .border(1.dp, com.hemanager.mobile.ui.theme.HeColors.HairlineMid, searchShape)
-                .padding(horizontal = 12.dp),
+                .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 Icons.Default.Search,
                 contentDescription = null,
                 tint = com.hemanager.mobile.ui.theme.HeColors.OpWhiteMuted,
-                modifier = Modifier.size(16.dp),
+                modifier = Modifier.size(18.dp),
             )
             Spacer(Modifier.width(10.dp))
             Box(modifier = Modifier.weight(1f)) {
@@ -260,7 +277,7 @@ internal fun SearchAndFilterPanelV2(
                         color = com.hemanager.mobile.ui.theme.HeColors.OpWhiteMuted,
                         fontFamily = com.hemanager.mobile.ui.theme.NotoSansSC,
                         fontWeight = FontWeight.Medium,
-                        fontSize = 14.sp,
+                        fontSize = 14.5.sp,
                     )
                 }
                 androidx.compose.foundation.text.BasicTextField(
@@ -271,7 +288,7 @@ internal fun SearchAndFilterPanelV2(
                         color = com.hemanager.mobile.ui.theme.HeColors.OpWhite,
                         fontFamily = com.hemanager.mobile.ui.theme.NotoSansSC,
                         fontWeight = FontWeight.Medium,
-                        fontSize = 14.sp,
+                        fontSize = 14.5.sp,
                     ),
                     cursorBrush = androidx.compose.ui.graphics.SolidColor(com.hemanager.mobile.ui.theme.HeColors.Yellow),
                     keyboardOptions = KeyboardOptions(
@@ -290,7 +307,7 @@ internal fun SearchAndFilterPanelV2(
                     contentDescription = "清除搜索",
                     tint = com.hemanager.mobile.ui.theme.HeColors.OpWhiteMuted,
                     modifier = Modifier
-                        .size(16.dp)
+                        .size(18.dp)
                         .clickable { onSearchChange("") },
                 )
             }
@@ -303,8 +320,8 @@ internal fun SearchAndFilterPanelV2(
             onStatusSelected = onStatusSelected
         )
 
-        // 筛选展开行：切角 + hairline + Slash 前缀
-        val expandShape = com.hemanager.mobile.ui.theme.CutCornerShape(8.dp)
+        // 筛选展开行：圆角 + hairline + 优雅标签
+        val expandShape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -312,7 +329,7 @@ internal fun SearchAndFilterPanelV2(
                 .background(com.hemanager.mobile.ui.theme.HeColors.Panel)
                 .border(1.dp, com.hemanager.mobile.ui.theme.HeColors.HairlineMid, expandShape)
                 .clickable { onOpenFilters() }
-                .padding(horizontal = 14.dp, vertical = 10.dp),
+                .padding(horizontal = 14.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
@@ -320,7 +337,7 @@ internal fun SearchAndFilterPanelV2(
                 color = com.hemanager.mobile.ui.theme.HeColors.Yellow,
                 fontFamily = com.hemanager.mobile.ui.theme.GeistMono,
                 fontWeight = FontWeight.Bold,
-                fontSize = 11.sp,
+                fontSize = 12.sp,
             )
             Spacer(Modifier.width(6.dp))
             Text(
@@ -328,8 +345,8 @@ internal fun SearchAndFilterPanelV2(
                 color = com.hemanager.mobile.ui.theme.HeColors.OpWhite,
                 fontFamily = com.hemanager.mobile.ui.theme.Oxanium,
                 fontWeight = FontWeight.Bold,
-                fontSize = 11.sp,
-                letterSpacing = 1.8.sp,
+                fontSize = 12.sp,
+                letterSpacing = 1.2.sp,
             )
             Spacer(Modifier.width(10.dp))
             Text(
@@ -338,23 +355,23 @@ internal fun SearchAndFilterPanelV2(
                 color = com.hemanager.mobile.ui.theme.HeColors.OpWhiteSoft,
                 fontFamily = com.hemanager.mobile.ui.theme.NotoSansSC,
                 fontWeight = FontWeight.Bold,
-                fontSize = 13.sp,
+                fontSize = 13.5.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             if (activeCount > 0) {
                 Box(
                     modifier = Modifier
-                        .clip(com.hemanager.mobile.ui.theme.CutCornerShape(4.dp))
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(6.dp))
                         .background(com.hemanager.mobile.ui.theme.HeColors.Yellow)
-                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                        .padding(horizontal = 7.dp, vertical = 2.5.dp),
                 ) {
                     Text(
                         activeCount.toString(),
                         color = com.hemanager.mobile.ui.theme.HeColors.OnYellow,
                         fontFamily = com.hemanager.mobile.ui.theme.GeistMono,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp,
+                        fontSize = 11.5.sp,
                     )
                 }
                 Spacer(Modifier.width(8.dp))
@@ -477,15 +494,9 @@ internal fun FilterBottomSheetV2(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = com.hemanager.mobile.ui.theme.HeColors.Ink,
-        shape = com.hemanager.mobile.ui.theme.CutCornerShape(
-            cut = 18.dp,
-            tl = true,
-            tr = true,
-            bl = false,
-            br = false,
-        ),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         scrimColor = Color.Black.copy(alpha = 0.7f),
-        dragHandle = null,  // 自绘 handle
+        dragHandle = null,
         tonalElevation = 0.dp,
     ) {
         Box {
@@ -514,9 +525,10 @@ internal fun FilterBottomSheetV2(
                 // 居中 handle
                 Box(
                     Modifier
-                        .padding(top = 8.dp, bottom = 18.dp)
+                        .padding(top = 10.dp, bottom = 18.dp)
                         .align(Alignment.CenterHorizontally)
-                        .size(width = 38.dp, height = 3.dp)
+                        .size(width = 44.dp, height = 4.dp)
+                        .clip(CircleShape)
                         .background(com.hemanager.mobile.ui.theme.HeColors.HairlineHi)
                 )
 
@@ -526,13 +538,13 @@ internal fun FilterBottomSheetV2(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    com.hemanager.mobile.ui.op.Slash(cn = "筛选", en = null)
+                    com.hemanager.mobile.ui.op.Slash(cn = "筛选与排序", en = "FILTER", fontSize = 14.sp)
                     Text(
                         "重置",
                         color = com.hemanager.mobile.ui.theme.HeColors.Yellow,
                         fontFamily = com.hemanager.mobile.ui.theme.NotoSansSC,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
+                        fontSize = 14.sp,
                         letterSpacing = 0.5.sp,
                         modifier = Modifier
                             .clickable(onClick = onReset)
@@ -610,7 +622,7 @@ internal fun FilterBottomSheetV2(
 @Composable
 private fun FilterSection(title: String, content: @Composable RowScope.() -> Unit) {
     Column {
-        com.hemanager.mobile.ui.op.Slash(cn = title, en = null, fontSize = 9.5.sp)
+        com.hemanager.mobile.ui.op.Slash(cn = title, en = null, fontSize = 13.sp)
         Spacer(Modifier.height(10.dp))
         Row(
             modifier = Modifier
@@ -633,7 +645,7 @@ private fun SortChipV2(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val shape = com.hemanager.mobile.ui.theme.CutCornerShape(7.dp)
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp)
     val tint = if (active) com.hemanager.mobile.ui.theme.HeColors.OnYellow
                else com.hemanager.mobile.ui.theme.HeColors.OpWhiteSoft
     Row(
@@ -642,11 +654,11 @@ private fun SortChipV2(
             .then(
                 if (active) Modifier.background(com.hemanager.mobile.ui.theme.HeColors.Yellow)
                 else Modifier
-                    .background(Color.Transparent)
+                    .background(com.hemanager.mobile.ui.theme.HeColors.Panel.copy(alpha = 0.65f))
                     .border(1.dp, com.hemanager.mobile.ui.theme.HeColors.HairlineMid, shape)
             )
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 7.dp),
+            .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(7.dp),
     ) {
@@ -654,7 +666,7 @@ private fun SortChipV2(
             imageVector = icon,
             contentDescription = null,
             tint = tint,
-            modifier = Modifier.size(13.dp),
+            modifier = Modifier.size(14.dp),
         )
         Text(
             text = label,
@@ -662,7 +674,7 @@ private fun SortChipV2(
                     else com.hemanager.mobile.ui.theme.HeColors.OpWhite,
             fontFamily = com.hemanager.mobile.ui.theme.NotoSansSC,
             fontWeight = FontWeight.Bold,
-            fontSize = 13.sp,
+            fontSize = 13.5.sp,
             maxLines = 1,
         )
     }

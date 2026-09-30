@@ -113,7 +113,7 @@ internal fun MediaCardV2(
     SwipeRevealCard(
         itemKey = "large-${item.id}",
         controller = controller,
-        shape = com.hemanager.mobile.ui.theme.CutCornerShape(14.dp),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
         actions = { progress ->
             QuickActionsPaneV2(
                 item = item,
@@ -122,7 +122,6 @@ internal fun MediaCardV2(
             )
         }
     ) {
-        // HE OP CardLargeOp — cut 14 + hairline + 封面 16:10
         com.hemanager.mobile.ui.op.AngularPanel(
             modifier = Modifier
                 .fillMaxWidth()
@@ -131,7 +130,7 @@ internal fun MediaCardV2(
                     scaleY = cardScale
                 }
                 .clickable(interactionSource = interactionSource, indication = null, onClick = tapWhileSomethingOpen),
-            cut = 14.dp,
+            cut = 18.dp,
             background = com.hemanager.mobile.ui.theme.HeColors.Panel,
             contentPadding = PaddingValues(0.dp),
         ) {
@@ -151,21 +150,11 @@ internal fun MediaCardV2(
                         cutDp = 0.dp,
                         modifier = Modifier.fillMaxSize()
                     )
-                    // HUD 角标（隐藏下方两角，因为下面是信息条）
-                    com.hemanager.mobile.ui.op.HudBrackets(
-                        modifier = Modifier.fillMaxSize(),
-                        inset = 8.dp,
-                        length = 12.dp,
-                        hideCorners = setOf(
-                            com.hemanager.mobile.ui.theme.Corner.BL,
-                            com.hemanager.mobile.ui.theme.Corner.BR,
-                        ),
-                    )
                     com.hemanager.mobile.ui.op.TypeChip(
                         mediaType = item.mediaType,
                         modifier = Modifier
                             .align(Alignment.TopStart)
-                            .padding(10.dp)
+                            .padding(12.dp)
                     )
                     if (item.favorite) {
                         Icon(
@@ -174,8 +163,8 @@ internal fun MediaCardV2(
                             tint = com.hemanager.mobile.ui.theme.HeColors.Yellow,
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
-                                .padding(10.dp)
-                                .size(14.dp),
+                                .padding(12.dp)
+                                .size(16.dp),
                         )
                     }
                     if (item.mediaType == "manga" && item.pageCount > 0) {
@@ -184,7 +173,7 @@ internal fun MediaCardV2(
                             color = com.hemanager.mobile.ui.theme.HeColors.OpWhite,
                             modifier = Modifier
                                 .align(Alignment.BottomStart)
-                                .padding(10.dp)
+                                .padding(12.dp)
                         )
                     }
                     FloatingPlayButtonV2(
@@ -192,14 +181,14 @@ internal fun MediaCardV2(
                         onClick = { playWhileSomethingOpen(false) },
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(10.dp)
+                            .padding(12.dp)
                     )
                 }
 
                 // 信息条
                 Column(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         com.hemanager.mobile.ui.op.CodeChip(
@@ -224,17 +213,17 @@ internal fun MediaCardV2(
                         fontFamily = com.hemanager.mobile.ui.theme.NotoSansSC,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
-                        lineHeight = 23.sp,
+                        lineHeight = 24.sp,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         metaInlineV2(item),
-                        color = com.hemanager.mobile.ui.theme.HeColors.OpWhiteMuted,
+                        color = com.hemanager.mobile.ui.theme.HeColors.OpWhiteSoft,
                         fontFamily = com.hemanager.mobile.ui.theme.GeistMono,
                         fontWeight = FontWeight.Medium,
-                        fontSize = 11.5.sp,
-                        letterSpacing = 0.4.sp,
+                        fontSize = 12.5.sp,
+                        letterSpacing = 0.3.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -245,7 +234,7 @@ internal fun MediaCardV2(
                     ) {
                         com.hemanager.mobile.ui.op.ProgressO(
                             value = progress ?: 0f,
-                            height = 2.dp,
+                            height = 2.5.dp,
                         )
                     }
                     if (item.missing || (item.mediaType == "manga" && (item.viewStatus == "viewing" || item.viewStatus == "viewed"))) {
@@ -708,9 +697,9 @@ internal fun MediaGridTileV2(
                     },
                     onLongClick = { controller.open(tileKey) }
                 ),
-            cut = 10.dp,
+            cut = 14.dp,
             background = com.hemanager.mobile.ui.theme.HeColors.Panel,
-            contentPadding = PaddingValues(4.dp),
+            contentPadding = PaddingValues(6.dp),
         ) {
             Column {
                 Box {
@@ -720,15 +709,10 @@ internal fun MediaGridTileV2(
                         accent = accent,
                         decodeWidthPx = 220,
                         decodeHeightPx = 320,
-                        cutDp = 6.dp,
+                        cutDp = 10.dp,
                         modifier = Modifier
                             .fillMaxWidth()
                             .aspectRatio(0.74f)
-                    )
-                    // TR 6dp 黄角封口
-                    com.hemanager.mobile.ui.op.YellowCornerSeal(
-                        size = 6.dp,
-                        modifier = Modifier.align(Alignment.TopEnd)
                     )
                     if (item.favorite) {
                         Icon(
@@ -737,8 +721,8 @@ internal fun MediaGridTileV2(
                             tint = com.hemanager.mobile.ui.theme.HeColors.Yellow,
                             modifier = Modifier
                                 .align(Alignment.BottomStart)
-                                .padding(6.dp)
-                                .size(11.dp)
+                                .padding(7.dp)
+                                .size(13.dp)
                         )
                     }
                     if (progress != null) {
@@ -751,22 +735,22 @@ internal fun MediaGridTileV2(
                         )
                     }
                 }
-                Spacer(Modifier.height(7.dp))
+                Spacer(Modifier.height(8.dp))
                 Text(
                     item.title,
                     color = com.hemanager.mobile.ui.theme.HeColors.OpWhite,
                     fontFamily = com.hemanager.mobile.ui.theme.NotoSansSC,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                    lineHeight = 16.sp,
+                    fontSize = 13.5.sp,
+                    lineHeight = 18.sp,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(horizontal = 2.dp),
                 )
-                Spacer(Modifier.height(3.dp))
+                Spacer(Modifier.height(4.dp))
                 com.hemanager.mobile.ui.op.CodeChip(
                     text = fakeCode(item),
-                    fontSize = 10.sp,
+                    fontSize = 11.5.sp,
                     modifier = Modifier.padding(horizontal = 2.dp),
                 )
             }

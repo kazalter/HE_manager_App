@@ -78,7 +78,7 @@ internal fun HeroFeature(
         modifier = Modifier
             .fillMaxWidth()
             .height(heroHeight)
-            .clip(com.hemanager.mobile.ui.theme.CutCornerShape(14.dp))
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(20.dp))
             .background(HeColors.Panel),
     ) {
         // 封面层
@@ -103,8 +103,6 @@ internal fun HeroFeature(
                     )
                 )
         )
-        // HUD marks
-        HudBrackets(modifier = Modifier.fillMaxSize(), inset = 10.dp, length = 14.dp)
 
         // 顶部装饰：左 28×3 黄短线 + 右 CodeChip
         Row(
@@ -118,6 +116,7 @@ internal fun HeroFeature(
                 Modifier
                     .width(28.dp)
                     .height(3.dp)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
                     .background(HeColors.Yellow)
             )
             Spacer(Modifier.weight(1f))
@@ -132,18 +131,18 @@ internal fun HeroFeature(
                 .padding(horizontal = 18.dp, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Slash(cn = "正在看", en = "Now Streaming")
+            Slash(cn = "正在看", en = "Now Streaming", fontSize = 14.sp)
             Text(
                 item.title,
                 color = HeColors.OpWhite,
                 fontFamily = NotoSansSC,
                 fontWeight = FontWeight.Black,
-                fontSize = 30.sp,
+                fontSize = 28.sp,
                 lineHeight = 34.sp,
-                letterSpacing = 0.sp,
+                letterSpacing = (-0.2).sp,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.widthIn(max = 320.dp),
+                modifier = Modifier.widthIn(max = 340.dp),
             )
             // meta 行
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -155,8 +154,8 @@ internal fun HeroFeature(
                         color = HeColors.OpWhiteSoft,
                         fontFamily = Oxanium,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp,
-                        letterSpacing = 1.6.sp,
+                        fontSize = 12.sp,
+                        letterSpacing = 1.2.sp,
                     )
                     Spacer(Modifier.width(8.dp))
                 }
@@ -165,7 +164,7 @@ internal fun HeroFeature(
                     color = HeColors.OpWhiteSoft,
                     fontFamily = GeistMono,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 12.sp,
+                    fontSize = 12.5.sp,
                     letterSpacing = 0.3.sp,
                 )
             }
@@ -208,7 +207,7 @@ internal fun QueueRow(
 ) {
     if (items.isEmpty()) return
     Column {
-        Slash(cn = "队列", en = "Queue", modifier = Modifier.padding(horizontal = 4.dp))
+        Slash(cn = "队列", en = "Queue", fontSize = 13.5.sp, modifier = Modifier.padding(horizontal = 4.dp))
         Spacer(Modifier.height(10.dp))
         Row(
             modifier = Modifier
@@ -231,8 +230,6 @@ internal fun QueueRow(
 
 /**
  * 浮动列数选择 pill — 图片墙底部居中，黑底毛玻璃感 + // COLS 标签 + 5 个数字按钮。
- *
- * 选中数字显示为切角黄底 + OnYellow；未选中是 hairline 灰描边。
  */
 @Composable
 internal fun ColsPill(
@@ -241,7 +238,7 @@ internal fun ColsPill(
     modifier: Modifier = Modifier,
 ) {
     val options = listOf(3, 4, 5, 6, 7)
-    val shape = com.hemanager.mobile.ui.theme.CutCornerShape(10.dp)
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
     Row(
         modifier = modifier
             .clip(shape)
@@ -255,23 +252,23 @@ internal fun ColsPill(
             color = HeColors.Yellow,
             fontFamily = GeistMono,
             fontWeight = FontWeight.Bold,
-            fontSize = 11.sp,
+            fontSize = 12.5.sp,
         )
         Text(
             "COLS",
             color = HeColors.OpWhiteSoft,
             fontFamily = Oxanium,
             fontWeight = FontWeight.Bold,
-            fontSize = 10.5.sp,
-            letterSpacing = 1.4.sp,
+            fontSize = 12.sp,
+            letterSpacing = 1.2.sp,
         )
         Spacer(Modifier.width(4.dp))
         options.forEach { col ->
             val active = col == currentColumns
-            val cellShape = com.hemanager.mobile.ui.theme.CutCornerShape(5.dp)
+            val cellShape = androidx.compose.foundation.shape.RoundedCornerShape(6.dp)
             Box(
                 modifier = Modifier
-                    .size(width = 22.dp, height = 22.dp)
+                    .size(width = 24.dp, height = 24.dp)
                     .clip(cellShape)
                     .background(if (active) HeColors.Yellow else Color.Transparent)
                     .clickable { onColumnsChange(col) },
@@ -298,7 +295,7 @@ private fun QueueTile(
     onClick: () -> Unit,
 ) {
     val progress = progressFraction(item)
-    val shape = com.hemanager.mobile.ui.theme.CutCornerShape(8.dp)
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
     Box(
         modifier = Modifier
             .width(130.dp)
@@ -321,7 +318,6 @@ private fun QueueTile(
                     cutDp = 0.dp,
                     modifier = Modifier.fillMaxSize(),
                 )
-                YellowCornerSeal(size = 8.dp, modifier = Modifier.align(Alignment.TopEnd))
                 // 索引数字 01/02/...
                 CodeChip(
                     text = index.toString().padStart(2, '0'),
@@ -346,14 +342,14 @@ private fun QueueTile(
                     )
                 }
             }
-            Spacer(Modifier.height(7.dp))
+            Spacer(Modifier.height(8.dp))
             Text(
                 item.title,
                 color = HeColors.OpWhite,
                 fontFamily = NotoSansSC,
                 fontWeight = FontWeight.Bold,
-                fontSize = 12.5.sp,
-                lineHeight = 15.5.sp,
+                fontSize = 13.sp,
+                lineHeight = 17.sp,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(horizontal = 8.dp),

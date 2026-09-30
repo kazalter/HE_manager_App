@@ -83,6 +83,7 @@ import com.hemanager.mobile.ui.op.StatusStripe
 import com.hemanager.mobile.ui.op.YellowCTA
 import com.hemanager.mobile.ui.op.YellowCornerSeal
 import com.hemanager.mobile.ui.host.LocalHostUiController
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.hemanager.mobile.ui.theme.CutCornerShape
 import com.hemanager.mobile.ui.theme.GeistMono
 import com.hemanager.mobile.ui.theme.HeColors
@@ -444,15 +445,15 @@ private fun CreatorDossier(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(6.dp)
-                        .clip(CutCornerShape(3.dp))
+                        .clip(RoundedCornerShape(6.dp))
                         .background(Color.Black.copy(alpha = 0.78f))
-                        .padding(horizontal = 5.dp, vertical = 2.dp)
+                        .padding(horizontal = 6.dp, vertical = 3.dp)
                 ) {
                     Text(
                         opCode,
                         color = HeColors.Yellow,
                         fontFamily = GeistMono,
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.5.sp,
                     )
@@ -490,7 +491,7 @@ private fun CreatorDossier(
                         color = HeColors.Yellow,
                         fontFamily = Oxanium,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 10.5.sp,
+                        fontSize = 12.sp,
                         letterSpacing = 1.2.sp,
                     )
                     Spacer(Modifier.weight(1f))
@@ -499,7 +500,7 @@ private fun CreatorDossier(
                         color = HeColors.OpWhite,
                         fontFamily = GeistMono,
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 11.5.sp,
+                        fontSize = 12.5.sp,
                     )
                 }
             }
@@ -512,7 +513,7 @@ private fun CreatorDossier(
                     color = HeColors.OpWhite,
                     fontFamily = NotoSansSC,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
+                    fontSize = 15.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -522,7 +523,7 @@ private fun CreatorDossier(
                         "@${creator.screenName}"
                     else "— · ARTIST",
                     color = HeColors.OpWhiteMuted,
-                    fontSize = 10.5.sp,
+                    fontSize = 11.5.sp,
                 )
             }
         }
@@ -617,7 +618,7 @@ private fun CreatorDetailView(
                             color = HeColors.OpWhiteMuted,
                             fontFamily = Oxanium,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 10.5.sp,
+                            fontSize = 12.sp,
                             letterSpacing = 1.8.sp,
                         )
                     }
@@ -650,7 +651,7 @@ private fun CreatorDetailView(
                             color = HeColors.OpWhiteSoft,
                             fontFamily = if (creator.kind == "x") GeistMono else Oxanium,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
+                            fontSize = 13.5.sp,
                             letterSpacing = if (creator.kind == "x") 0.5.sp else 1.6.sp,
                         )
                     }
@@ -712,7 +713,7 @@ private fun CreatorDetailView(
                 .weight(1f)
                 .padding(horizontal = 18.dp, vertical = 14.dp),
         ) {
-            Slash(cn = "作品集", en = "Works", fontSize = 10.5.sp)
+            Slash(cn = "作品集", en = "Works", fontSize = 12.5.sp)
             Spacer(Modifier.height(10.dp))
             when {
                 detailLoading -> Box(Modifier.fillMaxSize(), Alignment.Center) {
@@ -773,7 +774,7 @@ private fun WorkTile(
     onClick: () -> Unit,
 ) {
     val cover = coverUrl(serverUrl, token, item)
-    val shape = CutCornerShape(6.dp)
+    val shape = RoundedCornerShape(10.dp)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -830,9 +831,9 @@ private fun WorkTile(
                     modifier = Modifier
                         .align(Alignment.Center)
                         .size(30.dp)
-                        .clip(CutCornerShape(7.dp))
+                        .clip(RoundedCornerShape(10.dp))
                         .background(Color.Black.copy(alpha = 0.55f))
-                        .border(1.dp, HeColors.HairlineHi, CutCornerShape(7.dp)),
+                        .border(1.dp, HeColors.HairlineHi, RoundedCornerShape(10.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
@@ -850,8 +851,8 @@ private fun WorkTile(
             color = HeColors.OpWhite,
             fontFamily = NotoSansSC,
             fontWeight = FontWeight.Bold,
-            fontSize = 12.sp,
-            lineHeight = 15.sp,
+            fontSize = 13.sp,
+            lineHeight = 17.sp,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
@@ -860,7 +861,7 @@ private fun WorkTile(
             CodeChip(
                 text = com.hemanager.mobile.feature.library.formatDuration(item.duration),
                 color = HeColors.OpWhiteMuted,
-                fontSize = 10.sp,
+                fontSize = 11.5.sp,
             )
         }
     }

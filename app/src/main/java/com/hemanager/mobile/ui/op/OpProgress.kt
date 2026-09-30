@@ -69,8 +69,8 @@ fun StatNumber(
                 text = "$value",
                 color = accent,
                 fontFamily = GeistMono,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp,
                 letterSpacing = 0.sp,
             )
             if (total != null) {
@@ -78,25 +78,25 @@ fun StatNumber(
                     text = "/",
                     color = HeColors.OpWhiteMuted,
                     fontFamily = GeistMono,
-                    fontSize = 11.sp,
-                    modifier = Modifier.padding(start = 2.dp, end = 2.dp),
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(start = 3.dp, end = 3.dp),
                 )
                 Text(
                     text = "$total",
                     color = HeColors.OpWhiteMuted,
                     fontFamily = GeistMono,
                     fontWeight = FontWeight.Medium,
-                    fontSize = 12.sp,
+                    fontSize = 13.5.sp,
                 )
             }
         }
-        Spacer(Modifier.height(2.dp))
+        Spacer(Modifier.height(3.dp))
         Text(
             text = label,
             color = HeColors.OpWhiteMuted,
             fontFamily = Oxanium,
             fontWeight = FontWeight.Bold,
-            fontSize = 10.5.sp,
+            fontSize = 12.sp,
             letterSpacing = 1.6.sp,
         )
     }

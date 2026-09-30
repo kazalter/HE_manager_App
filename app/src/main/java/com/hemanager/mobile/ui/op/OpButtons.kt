@@ -37,16 +37,13 @@ private data class CtaMetrics(
 )
 
 private fun metricsFor(size: CtaSize): CtaMetrics = when (size) {
-    CtaSize.Small  -> CtaMetrics(8.dp,  16.dp, 12.sp,   8.dp, 13.dp)
-    CtaSize.Medium -> CtaMetrics(11.dp, 20.dp, 13.5.sp, 10.dp, 14.5.dp)
-    CtaSize.Large  -> CtaMetrics(14.dp, 26.dp, 15.sp,   10.dp, 16.dp)
+    CtaSize.Small  -> CtaMetrics(9.dp,  18.dp, 13.5.sp, 12.dp, 15.dp)
+    CtaSize.Medium -> CtaMetrics(12.dp, 22.dp, 15.sp,   14.dp, 17.dp)
+    CtaSize.Large  -> CtaMetrics(15.dp, 28.dp, 16.5.sp, 16.dp, 19.dp)
 }
 
 /**
- * 主 CTA：黄底切角，OnYellow 文字，Oxanium Bold ALL-CAPS。
- *
- * 文档规则：黄色只允许出现在 1 个主 CTA + active 状态 + 切角封口等少数地方。
- * 不要拿来当普通按钮用。
+ * 主 CTA：黄底圆角，OnYellow 文字，高对比度清晰排版。
  */
 @Composable
 fun YellowCTA(
@@ -83,10 +80,10 @@ fun YellowCTA(
             Text(
                 text = text,
                 color = HeColors.OnYellow,
-                fontFamily = Oxanium,
+                fontFamily = com.hemanager.mobile.ui.theme.NotoSansSC,
                 fontWeight = FontWeight.Bold,
                 fontSize = m.fontSize,
-                letterSpacing = 1.5.sp,
+                letterSpacing = 0.5.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Clip,
                 softWrap = false,
@@ -96,7 +93,7 @@ fun YellowCTA(
 }
 
 /**
- * 次级按钮：黑底 + 1dp HairlineMid 描边 + 白字 + 切角。
+ * 次级按钮：深色背景 + 1dp HairlineMid 描边 + 白字 + 平滑圆角。
  */
 @Composable
 fun GhostCta(
@@ -134,10 +131,10 @@ fun GhostCta(
             Text(
                 text = text,
                 color = HeColors.OpWhite,
-                fontFamily = Oxanium,
+                fontFamily = com.hemanager.mobile.ui.theme.NotoSansSC,
                 fontWeight = FontWeight.Bold,
                 fontSize = m.fontSize,
-                letterSpacing = 1.5.sp,
+                letterSpacing = 0.5.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Clip,
                 softWrap = false,
@@ -147,9 +144,7 @@ fun GhostCta(
 }
 
 /**
- * 筛选条上的切角小药丸：active 时黄底，否则透明 + hairline 描边。
- *
- * EN 小字作为 ALL-CAPS 尾巴。active 状态左侧叠一个 6dp Diamond。
+ * 筛选条上的平滑圆角小药丸：active 时黄底，否则半透明 + hairline 描边。
  */
 @Composable
 fun FilterTab(
@@ -159,11 +154,11 @@ fun FilterTab(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val shape = CutCornerShape(7.dp)
+    val shape = CutCornerShape(10.dp)
     val bgMod = if (active)
         Modifier.background(HeColors.Yellow)
     else
-        Modifier.background(Color.Transparent).border(1.dp, HeColors.HairlineMid, shape)
+        Modifier.background(HeColors.Panel.copy(alpha = 0.65f)).border(1.dp, HeColors.HairlineMid, shape)
     val labelColor = if (active) HeColors.OnYellow else HeColors.OpWhiteSoft
 
     Box(
@@ -171,7 +166,7 @@ fun FilterTab(
             .clip(shape)
             .then(bgMod)
             .clickable { onClick() }
-            .padding(horizontal = 14.dp, vertical = 7.dp)
+            .padding(horizontal = 15.dp, vertical = 8.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -181,10 +176,10 @@ fun FilterTab(
             Text(
                 text = label,
                 color = labelColor,
-                fontFamily = Geist,
-                fontSize = 13.sp,
+                fontFamily = com.hemanager.mobile.ui.theme.NotoSansSC,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
-                letterSpacing = 0.4.sp,
+                letterSpacing = 0.2.sp,
             )
             if (en != null) {
                 Text(
@@ -192,9 +187,9 @@ fun FilterTab(
                     color = labelColor,
                     fontFamily = Oxanium,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 10.5.sp,
-                    letterSpacing = 1.2.sp,
-                    modifier = Modifier.alpha(0.6f),
+                    fontSize = 11.5.sp,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.alpha(0.7f),
                 )
             }
         }

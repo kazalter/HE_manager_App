@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -258,7 +259,7 @@ fun LoginScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(54.dp)
-                            .clip(CutCornerShape(10.dp))
+                            .clip(RoundedCornerShape(14.dp))
                             .background(HeColors.YellowDim),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -299,7 +300,7 @@ fun LoginScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable(enabled = !busy) { submit(true) }
-                    .padding(vertical = 6.dp),
+                    .padding(vertical = 10.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
@@ -307,7 +308,7 @@ fun LoginScreen(
                     color = HeColors.OpWhiteSoft,
                     fontFamily = Oxanium,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 11.5.sp,
+                    fontSize = 12.5.sp,
                     letterSpacing = 1.6.sp,
                 )
             }
@@ -374,7 +375,7 @@ private fun ServerHistoryPanel(
                     color = HeColors.Yellow,
                     fontFamily = Oxanium,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 10.5.sp,
+                    fontSize = 12.sp,
                     letterSpacing = 2.sp,
                 )
                 Text(
@@ -382,7 +383,7 @@ private fun ServerHistoryPanel(
                     color = HeColors.OpWhiteMuted,
                     fontFamily = NotoSansSC,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 10.5.sp,
+                    fontSize = 12.sp,
                     modifier = Modifier.padding(start = 6.dp),
                 )
                 Spacer(Modifier.weight(1f))
@@ -414,7 +415,7 @@ private fun ServerHistoryRow(
     onSelect: () -> Unit,
     onRemove: () -> Unit,
 ) {
-    val shape = CutCornerShape(8.dp)
+    val shape = RoundedCornerShape(12.dp)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -439,7 +440,7 @@ private fun ServerHistoryRow(
                 color = if (selected) HeColors.OpWhite else HeColors.OpWhiteSoft,
                 fontFamily = GeistMono,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp,
+                fontSize = 13.5.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -448,9 +449,9 @@ private fun ServerHistoryRow(
         Box(
             modifier = Modifier
                 .size(34.dp)
-                .clip(CutCornerShape(7.dp))
+                .clip(RoundedCornerShape(8.dp))
                 .background(HeColors.OpDanger.copy(alpha = 0.10f))
-                .border(1.dp, HeColors.OpDanger.copy(alpha = 0.28f), CutCornerShape(7.dp))
+                .border(1.dp, HeColors.OpDanger.copy(alpha = 0.28f), RoundedCornerShape(8.dp))
                 .clickable(onClick = onRemove),
             contentAlignment = Alignment.Center,
         ) {
@@ -486,7 +487,7 @@ private fun TerminalField(
     val actualFocusRequester = focusRequester ?: remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
     var isFocused by remember { mutableStateOf(false) }
-    val shape = CutCornerShape(8.dp)
+    val shape = RoundedCornerShape(12.dp)
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -506,7 +507,7 @@ private fun TerminalField(
                 color = HeColors.OpWhiteMuted,
                 fontFamily = GeistMono,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 10.5.sp,
+                fontSize = 12.sp,
                 modifier = Modifier.padding(end = 4.dp),
             )
             Text(
@@ -514,7 +515,7 @@ private fun TerminalField(
                 color = if (isFocused) HeColors.Yellow else HeColors.Yellow.copy(alpha = 0.85f),
                 fontFamily = Oxanium,
                 fontWeight = FontWeight.Bold,
-                fontSize = 10.5.sp,
+                fontSize = 12.sp,
                 letterSpacing = 2.sp,
             )
             Text(
@@ -522,7 +523,7 @@ private fun TerminalField(
                 color = if (isFocused) HeColors.OpWhite else HeColors.OpWhiteMuted,
                 fontFamily = NotoSansSC,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 10.5.sp,
+                fontSize = 12.5.sp,
                 letterSpacing = 0.5.sp,
                 modifier = Modifier.padding(start = 6.dp),
             )
@@ -543,7 +544,7 @@ private fun TerminalField(
                 color = HeColors.OpWhite,
                 fontFamily = GeistMono,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 14.5.sp,
+                fontSize = 15.sp,
                 letterSpacing = if (password) 4.sp else 0.2.sp,
             ),
             cursorBrush = SolidColor(HeColors.Yellow),
@@ -569,7 +570,7 @@ private fun TerminalField(
                             color = if (isFocused) HeColors.Yellow else HeColors.HairlineMid,
                             shape = shape,
                         )
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                        .padding(horizontal = 16.dp, vertical = 13.dp),
                     contentAlignment = Alignment.CenterStart,
                 ) {
                     innerTextField()

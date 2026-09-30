@@ -34,28 +34,30 @@ fun StatusStripe(
         modifier = modifier
             .fillMaxWidth()
             .background(HeColors.Void)
-            .padding(horizontal = 16.dp, vertical = 6.dp),
+            .padding(horizontal = 16.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
             text = "//",
             color = HeColors.Yellow,
             fontFamily = GeistMono,
             fontWeight = FontWeight.SemiBold,
-            fontSize = 10.5.sp,
+            fontSize = 11.5.sp,
         )
         Text(
             text = "HE://$server",
             color = HeColors.OpWhiteMuted,
             fontFamily = GeistMono,
             fontWeight = FontWeight.Medium,
-            fontSize = 10.5.sp,
-            letterSpacing = 0.6.sp,
+            fontSize = 11.5.sp,
+            letterSpacing = 0.2.sp,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
         )
         Box(
             modifier = Modifier
-                .size(1.dp, 10.dp)
+                .size(1.dp, 12.dp)
                 .background(HeColors.HairlineMid)
         )
         Text(
@@ -63,7 +65,8 @@ fun StatusStripe(
             color = HeColors.Online,
             fontFamily = GeistMono,
             fontWeight = FontWeight.SemiBold,
-            fontSize = 10.5.sp,
+            fontSize = 11.5.sp,
+            maxLines = 1,
         )
         Spacer(Modifier.weight(1f))
         Text(
@@ -71,7 +74,8 @@ fun StatusStripe(
             color = HeColors.OpWhiteMuted,
             fontFamily = GeistMono,
             fontWeight = FontWeight.Medium,
-            fontSize = 10.5.sp,
+            fontSize = 11.5.sp,
+            maxLines = 1,
         )
     }
 }

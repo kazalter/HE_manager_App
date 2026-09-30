@@ -33,8 +33,8 @@ import com.hemanager.mobile.ui.theme.HeColors
 @Composable
 fun AngularPanel(
     modifier: Modifier = Modifier,
-    cut: Dp = 14.dp,
-    corners: Set<Corner> = setOf(Corner.TR, Corner.BL),
+    cut: Dp = 18.dp,
+    corners: Set<Corner> = setOf(Corner.TL, Corner.TR, Corner.BR, Corner.BL),
     background: Color = HeColors.Panel,
     yellowCorner: Boolean = false,
     hairline: Boolean = true,
@@ -48,42 +48,18 @@ fun AngularPanel(
         br = Corner.BR in corners,
         bl = Corner.BL in corners,
     )
-    // 关键修正：早期版本用 Box(modifier) + 内层 Box(matchParentSize)，外层没有非
-    // matchParentSize 的子节点撑大尺寸 → 整 panel 塌成 0×0。修法是让"内容 Box"自身就
-    // 当主容器（modifier 直接作用其上，content 撑大它），可选的封口三角用 Box overlay
-    // 包一层时再 align 到 TopEnd——但只在确实需要时才包，避免 yellowCorner=false 时
-    // 多余一层 Box 包装。
-    if (yellowCorner && Corner.TR in corners) {
-        Box(modifier = modifier) {
-            Box(
-                modifier = Modifier
-                    .clip(shape)
-                    .background(background)
-                    .then(if (hairline) Modifier.border(1.dp, HeColors.HairlineMid, shape) else Modifier)
-                    .padding(contentPadding),
-                content = content,
-            )
-            YellowCornerSeal(
-                size = cut,
-                modifier = Modifier.align(Alignment.TopEnd),
-            )
-        }
-    } else {
-        Box(
-            modifier = modifier
-                .clip(shape)
-                .background(background)
-                .then(if (hairline) Modifier.border(1.dp, HeColors.HairlineMid, shape) else Modifier)
-                .padding(contentPadding),
-            content = content,
-        )
-    }
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .background(background)
+            .then(if (hairline) Modifier.border(1.dp, HeColors.HairlineMid, shape) else Modifier)
+            .padding(contentPadding),
+        content = content,
+    )
 }
 
 /**
- * 黄色切角封口三角：贴在 panel 右上角，覆盖切掉的那块缺口。
- *
- * 用 Canvas 画 `[0,0] → [size,0] → [size,size]` 三点三角形。
+ * 保持兼容签名的切角封口装饰（圆滑化为平滑无干涉）。
  */
 @Composable
 fun YellowCornerSeal(
@@ -91,14 +67,5 @@ fun YellowCornerSeal(
     color: Color = HeColors.Yellow,
     modifier: Modifier = Modifier,
 ) {
-    Canvas(modifier = modifier.size(size)) {
-        val s = this.size.width
-        val path = Path().apply {
-            moveTo(0f, 0f)
-            lineTo(s, 0f)
-            lineTo(s, s)
-            close()
-        }
-        drawPath(path = path, color = color)
-    }
+    // 现代圆滑风格下不再在卡片圆角上叠生硬直角三角
 }

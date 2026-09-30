@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
@@ -110,7 +111,7 @@ internal fun AppDrawerV2(
 
                     // 3. 服务连接
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        com.hemanager.mobile.ui.op.Slash(cn = "服务连接", en = "Server Link", fontSize = 10.5.sp)
+                        com.hemanager.mobile.ui.op.Slash(cn = "服务连接", en = "Server Link", fontSize = 12.5.sp)
                         DrawerServerCardV2(
                             serverUrl = serverUrl,
                             online = true,
@@ -119,7 +120,7 @@ internal fun AppDrawerV2(
 
                     // 4. 导航
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        com.hemanager.mobile.ui.op.Slash(cn = "导航", en = "Navigate", fontSize = 10.5.sp)
+                        com.hemanager.mobile.ui.op.Slash(cn = "导航", en = "Navigate", fontSize = 12.5.sp)
                         Spacer(Modifier.height(6.dp))
                         DNavRow(
                             cn = "媒体库", en = "Library",
@@ -167,7 +168,7 @@ internal fun AppDrawerV2(
 
                     // 5. 媒体分类
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        com.hemanager.mobile.ui.op.Slash(cn = "媒体分类", en = "Library", fontSize = 10.5.sp)
+                        com.hemanager.mobile.ui.op.Slash(cn = "媒体分类", en = "Library", fontSize = 12.5.sp)
                         Spacer(Modifier.height(6.dp))
                         filters.forEach { option ->
                             DNavRow(
@@ -206,12 +207,12 @@ internal fun AppDrawerV2(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .clip(com.hemanager.mobile.ui.theme.CutCornerShape(8.dp))
+                            .clip(RoundedCornerShape(12.dp))
                             .background(Color.Transparent)
                             .border(
                                 1.dp,
                                 com.hemanager.mobile.ui.theme.HeColors.OpDanger.copy(alpha = 0.5f),
-                                com.hemanager.mobile.ui.theme.CutCornerShape(8.dp)
+                                RoundedCornerShape(12.dp)
                             )
                             .clickable(onClick = onLogout)
                             .padding(horizontal = 14.dp, vertical = 11.dp),
@@ -225,7 +226,7 @@ internal fun AppDrawerV2(
                                 Icons.AutoMirrored.Filled.ExitToApp,
                                 contentDescription = null,
                                 tint = com.hemanager.mobile.ui.theme.HeColors.OpDanger,
-                                modifier = Modifier.size(13.dp),
+                                modifier = Modifier.size(15.dp),
                             )
                             Spacer(Modifier.width(8.dp))
                             Text(
@@ -233,7 +234,7 @@ internal fun AppDrawerV2(
                                 color = com.hemanager.mobile.ui.theme.HeColors.OpDanger,
                                 fontFamily = com.hemanager.mobile.ui.theme.Oxanium,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp,
+                                fontSize = 13.sp,
                                 letterSpacing = 1.8.sp,
                             )
                             Spacer(Modifier.width(6.dp))
@@ -242,7 +243,7 @@ internal fun AppDrawerV2(
                                 color = com.hemanager.mobile.ui.theme.HeColors.OpDanger.copy(alpha = 0.85f),
                                 fontFamily = com.hemanager.mobile.ui.theme.NotoSansSC,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp,
+                                fontSize = 13.sp,
                             )
                         }
                     }
@@ -311,7 +312,7 @@ internal fun DrawerProfileHeaderV2() {
                 color = com.hemanager.mobile.ui.theme.HeColors.OpWhiteSoft,
                 fontFamily = com.hemanager.mobile.ui.theme.Oxanium,
                 fontWeight = FontWeight.Bold,
-                fontSize = 10.5.sp,
+                fontSize = 12.sp,
                 letterSpacing = 1.4.sp,
             )
             Spacer(Modifier.height(4.dp))
@@ -328,14 +329,14 @@ internal fun DrawerServerCardV2(serverUrl: String, online: Boolean = true) {
     // HE OP 服务连接卡：小切角面板 + 6dp 绿圆点 + ● ONLINE + serverHost CodeChip
     com.hemanager.mobile.ui.op.AngularPanel(
         modifier = Modifier.fillMaxWidth(),
-        cut = 8.dp,
+        cut = 12.dp,
         background = com.hemanager.mobile.ui.theme.HeColors.Panel,
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 11.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
-                    .size(6.dp)
+                    .size(7.dp)
                     .clip(CircleShape)
                     .background(
                         if (online) com.hemanager.mobile.ui.theme.HeColors.Online
@@ -344,12 +345,12 @@ internal fun DrawerServerCardV2(serverUrl: String, online: Boolean = true) {
             )
             Spacer(Modifier.width(8.dp))
             Text(
-                if (online) "● ONLINE" else "● OFFLINE",
+                if (online) "ONLINE" else "OFFLINE",
                 color = if (online) com.hemanager.mobile.ui.theme.HeColors.Online
                         else com.hemanager.mobile.ui.theme.HeColors.OpDanger,
                 fontFamily = com.hemanager.mobile.ui.theme.Oxanium,
                 fontWeight = FontWeight.Bold,
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 letterSpacing = 1.4.sp,
             )
             Spacer(Modifier.weight(1f))
@@ -364,8 +365,8 @@ internal fun DrawerServerCardV2(serverUrl: String, online: Boolean = true) {
 /**
  * HE OP DNavO — Drawer 双层中英导航行。
  *
- * Active 时：左侧 2dp 黄竖条（内缩 8dp）+ Surface 背景 + 切角 TR/BL。
- * 默认时：透明、无切角。Icon (16dp) → 双层 EN/CN → 右侧 GeistMono count。
+ * Active 时：左侧 3dp 黄竖条 + Surface 背景 + 10dp 圆角。
+ * 默认时：透明。Icon (18dp) → 双层 EN/CN → 右侧 GeistMono count。
  */
 @Composable
 private fun DNavRow(
@@ -376,7 +377,7 @@ private fun DNavRow(
     onClick: () -> Unit,
     count: Int? = null,
 ) {
-    val shape = com.hemanager.mobile.ui.theme.CutCornerShape(6.dp)
+    val shape = RoundedCornerShape(10.dp)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -385,12 +386,13 @@ private fun DNavRow(
             .padding(start = 14.dp, top = 10.dp, end = 12.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // 左侧 active 黄竖条（用 Box 占位，相对 Row 内插）
+        // 左侧 active 黄竖条
         if (active) {
             Box(
                 modifier = Modifier
-                    .width(2.dp)
-                    .height(20.dp)
+                    .width(3.dp)
+                    .height(22.dp)
+                    .clip(RoundedCornerShape(2.dp))
                     .background(com.hemanager.mobile.ui.theme.HeColors.Yellow)
             )
             Spacer(Modifier.width(10.dp))
@@ -400,7 +402,7 @@ private fun DNavRow(
             contentDescription = null,
             tint = if (active) com.hemanager.mobile.ui.theme.HeColors.Yellow
                    else com.hemanager.mobile.ui.theme.HeColors.OpWhiteSoft,
-            modifier = Modifier.size(16.dp),
+            modifier = Modifier.size(18.dp),
         )
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -422,7 +424,7 @@ private fun DNavRow(
                         else com.hemanager.mobile.ui.theme.HeColors.OpWhiteSoft,
                 fontFamily = com.hemanager.mobile.ui.theme.NotoSansSC,
                 fontWeight = FontWeight.Bold,
-                fontSize = 13.5.sp,
+                fontSize = 14.5.sp,
             )
         }
         if (count != null) {
@@ -432,7 +434,7 @@ private fun DNavRow(
                         else com.hemanager.mobile.ui.theme.HeColors.OpWhiteMuted,
                 fontFamily = com.hemanager.mobile.ui.theme.GeistMono,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 12.sp,
+                fontSize = 13.sp,
                 letterSpacing = 0.5.sp,
             )
         }

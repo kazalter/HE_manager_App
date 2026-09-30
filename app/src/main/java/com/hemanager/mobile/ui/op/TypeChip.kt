@@ -11,12 +11,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.hemanager.mobile.ui.theme.CutCornerShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.hemanager.mobile.ui.theme.GeistMono
 import com.hemanager.mobile.ui.theme.HeColors
 
 /**
- * 媒体类型小药丸：黑底切角 + 黄色 mono code。
+ * 媒体类型小药丸：半透明黑色背景 + 黄色高对比 mono 编码，平滑圆角。
  *
  * 映射：video → VID / manga → MNG / image → IMG / audio → AUD / 其他 → MED。
  */
@@ -33,21 +33,21 @@ fun TypeChip(
         "audio" -> "AUD"
         else -> "MED"
     }
-    val bg = if (onYellow) HeColors.Yellow else Color.Black.copy(alpha = 0.78f)
+    val bg = if (onYellow) HeColors.Yellow else Color.Black.copy(alpha = 0.72f)
     val fg = if (onYellow) HeColors.OnYellow else HeColors.Yellow
     Box(
         modifier = modifier
-            .clip(CutCornerShape(4.dp))
+            .clip(RoundedCornerShape(6.dp))
             .background(bg)
-            .padding(horizontal = 7.dp, vertical = 3.dp),
+            .padding(horizontal = 8.dp, vertical = 4.dp),
     ) {
         Text(
             text = code,
             color = fg,
             fontFamily = GeistMono,
-            fontSize = 10.5.sp,
+            fontSize = 11.5.sp,
             fontWeight = FontWeight.Bold,
-            letterSpacing = 0.8.sp,
+            letterSpacing = 0.6.sp,
         )
     }
 }

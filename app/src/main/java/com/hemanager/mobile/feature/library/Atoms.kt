@@ -107,7 +107,7 @@ internal fun MediaDetailRowV2(
     SwipeRevealCard(
         itemKey = "detail-${item.id}",
         controller = controller,
-        shape = com.hemanager.mobile.ui.theme.CutCornerShape(8.dp),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
         actionsWidth = 156.dp,
         actions = { progress ->
             QuickActionsPaneV2(
@@ -123,7 +123,7 @@ internal fun MediaDetailRowV2(
                 .clickable(onClick = {
                     if (controller.openKey != null) controller.close() else onOpen(false)
                 }),
-            cut = 10.dp,
+            cut = 14.dp,
             background = com.hemanager.mobile.ui.theme.HeColors.Panel,
             contentPadding = PaddingValues(10.dp),
         ) {
@@ -138,13 +138,8 @@ internal fun MediaDetailRowV2(
                         accent = accent,
                         decodeWidthPx = 220,
                         decodeHeightPx = 308,
-                        cutDp = 7.dp,
+                        cutDp = 10.dp,
                         modifier = Modifier.fillMaxSize()
-                    )
-                    // TR 7dp 黄角封口
-                    com.hemanager.mobile.ui.op.YellowCornerSeal(
-                        size = 7.dp,
-                        modifier = Modifier.align(Alignment.TopEnd),
                     )
                 }
                 Spacer(Modifier.width(12.dp))
@@ -165,7 +160,7 @@ internal fun MediaDetailRowV2(
                                 Icons.Default.Star,
                                 contentDescription = "收藏",
                                 tint = com.hemanager.mobile.ui.theme.HeColors.Yellow,
-                                modifier = Modifier.size(12.dp)
+                                modifier = Modifier.size(13.dp)
                             )
                         }
                         if (item.missing) {
@@ -177,7 +172,7 @@ internal fun MediaDetailRowV2(
                         color = com.hemanager.mobile.ui.theme.HeColors.OpWhite,
                         fontFamily = com.hemanager.mobile.ui.theme.NotoSansSC,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
+                        fontSize = 15.5.sp,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -194,10 +189,10 @@ internal fun MediaDetailRowV2(
                         Text(
                             progressTextV2(item),
                             modifier = Modifier.weight(1f),
-                            color = com.hemanager.mobile.ui.theme.HeColors.OpWhiteMuted,
+                            color = com.hemanager.mobile.ui.theme.HeColors.OpWhiteSoft,
                             fontFamily = com.hemanager.mobile.ui.theme.GeistMono,
                             fontWeight = FontWeight.Medium,
-                            fontSize = 11.5.sp,
+                            fontSize = 12.5.sp,
                             letterSpacing = 0.3.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -216,20 +211,19 @@ internal fun MediaDetailRowV2(
 
 @Composable
 internal fun TinyBadgeV2(label: String, color: Color, modifier: Modifier = Modifier) {
-    // HE OP — 小切角黑底，文字色不强（用传入色但 alpha 降一档）
     Box(
         modifier = modifier
-            .clip(com.hemanager.mobile.ui.theme.CutCornerShape(4.dp))
-            .background(Color.Black.copy(alpha = 0.65f))
-            .padding(horizontal = 7.dp, vertical = 3.dp),
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(6.dp))
+            .background(Color.Black.copy(alpha = 0.7f))
+            .padding(horizontal = 8.dp, vertical = 3.5.dp),
     ) {
         Text(
             label,
             color = color,
             fontFamily = com.hemanager.mobile.ui.theme.GeistMono,
-            fontSize = 10.5.sp,
+            fontSize = 11.5.sp,
             fontWeight = FontWeight.Bold,
-            letterSpacing = 0.6.sp,
+            letterSpacing = 0.5.sp,
             maxLines = 1,
         )
     }
@@ -243,11 +237,11 @@ internal fun RemoteCoverV2(
     decodeWidthPx: Int = 240,
     decodeHeightPx: Int = 340,
     modifier: Modifier = Modifier,
-    cutDp: Dp = 8.dp,
+    cutDp: Dp = 12.dp,
 ) {
     val decodeWidth = remember(decodeWidthPx) { coverDecodeBucketPx(decodeWidthPx) }
     val decodeHeight = remember(decodeHeightPx) { coverDecodeBucketPx(decodeHeightPx) }
-    val shape = com.hemanager.mobile.ui.theme.CutCornerShape(cutDp)
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(cutDp)
 
     Box(
         modifier = modifier
@@ -288,30 +282,29 @@ internal fun RemoteCoverV2(
 
 @Composable
 internal fun FloatingPlayButtonV2(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    // HE OP — 黄底切角 + Oxanium Bold 大写
-    val shape = com.hemanager.mobile.ui.theme.CutCornerShape(8.dp)
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
     Row(
         modifier = modifier
             .clip(shape)
             .background(com.hemanager.mobile.ui.theme.HeColors.Yellow)
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 7.dp),
+            .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             Icons.Default.PlayArrow,
             contentDescription = null,
             tint = com.hemanager.mobile.ui.theme.HeColors.OnYellow,
-            modifier = Modifier.size(14.dp)
+            modifier = Modifier.size(15.dp)
         )
         Spacer(Modifier.width(4.dp))
         Text(
             label,
             color = com.hemanager.mobile.ui.theme.HeColors.OnYellow,
-            fontFamily = com.hemanager.mobile.ui.theme.Oxanium,
+            fontFamily = com.hemanager.mobile.ui.theme.NotoSansSC,
             fontWeight = FontWeight.Bold,
-            fontSize = 12.sp,
-            letterSpacing = 1.4.sp,
+            fontSize = 12.5.sp,
+            letterSpacing = 0.8.sp,
         )
     }
 }
@@ -458,32 +451,31 @@ internal fun LoadingCardSkeletonV2(index: Int) {
 internal fun SkeletonBlockV2(modifier: Modifier, alpha: Float) {
     Box(
         modifier = modifier
-            .clip(com.hemanager.mobile.ui.theme.CutCornerShape(6.dp))
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(6.dp))
             .background(com.hemanager.mobile.ui.theme.HeColors.OpWhite.copy(alpha = alpha))
     )
 }
 
 @Composable
 internal fun StatusPillV2(label: String, color: Color, modifier: Modifier = Modifier) {
-    // HE OP — 用 ● 圆点 + ALL-CAPS Oxanium，不再做药丸 surface
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             Modifier
-                .size(5.dp)
+                .size(6.dp)
                 .clip(CircleShape)
                 .background(color)
         )
-        Spacer(Modifier.width(5.dp))
+        Spacer(Modifier.width(6.dp))
         Text(
             label,
             color = color,
             fontFamily = com.hemanager.mobile.ui.theme.Oxanium,
             fontWeight = FontWeight.Bold,
-            fontSize = 10.5.sp,
-            letterSpacing = 1.4.sp,
+            fontSize = 11.5.sp,
+            letterSpacing = 1.2.sp,
             maxLines = 1,
         )
     }
@@ -491,21 +483,22 @@ internal fun StatusPillV2(label: String, color: Color, modifier: Modifier = Modi
 
 @Composable
 internal fun ActionPillV2(label: String, color: Color, onClick: () -> Unit) {
+    val pillShape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
     Box(
         modifier = Modifier
-            .clip(com.hemanager.mobile.ui.theme.CutCornerShape(6.dp))
-            .background(Color.Transparent)
-            .border(1.dp, com.hemanager.mobile.ui.theme.HeColors.HairlineMid, com.hemanager.mobile.ui.theme.CutCornerShape(6.dp))
+            .clip(pillShape)
+            .background(com.hemanager.mobile.ui.theme.HeColors.Panel.copy(alpha = 0.75f))
+            .border(1.dp, com.hemanager.mobile.ui.theme.HeColors.HairlineMid, pillShape)
             .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 5.dp),
+            .padding(horizontal = 11.dp, vertical = 6.dp),
     ) {
         Text(
             label,
             color = com.hemanager.mobile.ui.theme.HeColors.OpWhite,
-            fontFamily = com.hemanager.mobile.ui.theme.Oxanium,
+            fontFamily = com.hemanager.mobile.ui.theme.NotoSansSC,
             fontWeight = FontWeight.Bold,
-            fontSize = 11.sp,
-            letterSpacing = 1.2.sp,
+            fontSize = 12.sp,
+            letterSpacing = 0.5.sp,
             maxLines = 1,
         )
     }

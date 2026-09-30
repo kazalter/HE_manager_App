@@ -1,8 +1,8 @@
 package com.hemanager.mobile.ui.theme
 
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Outline
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
@@ -10,71 +10,53 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 
 /**
- * HE OP 切角形状（鹰角签名）。
+ * 现代圆滑形状（向后兼容原 CutCornerShape 签名）。
  *
- * 默认切**右上 + 左下**两个斜角；可通过 [tl] / [tr] / [bl] / [br] 任意组合。
- * 用于所有 panel、chip、按钮、输入框、头像。
+ * 全面升级为现代高质感平滑圆角，默认对四角均生效，
+ * 解决原切角设计在手机端视觉细碎、生硬割裂的问题。
  *
- * @param cut 切角大小（dp），默认 14
+ * @param cut 圆角大小（dp），默认 14dp
  */
 class CutCornerShape(
     private val cut: Dp,
     private val tr: Boolean = true,
-    private val tl: Boolean = false,
-    private val br: Boolean = false,
+    private val tl: Boolean = true,
+    private val br: Boolean = true,
     private val bl: Boolean = true,
 ) : Shape {
+    private val delegate = RoundedCornerShape(
+        topStart = if (tl) cut else 0.dp,
+        topEnd = if (tr) cut else 0.dp,
+        bottomEnd = if (br) cut else 0.dp,
+        bottomStart = if (bl) cut else 0.dp,
+    )
+
     override fun createOutline(
         size: Size,
         layoutDirection: LayoutDirection,
         density: Density,
-    ): Outline {
-        val c = with(density) { cut.toPx() }.coerceAtMost(minOf(size.width, size.height) / 2f)
-        val path = Path().apply {
-            if (tl) {
-                moveTo(0f, c)
-                lineTo(c, 0f)
-            } else {
-                moveTo(0f, 0f)
-            }
-            if (tr) {
-                lineTo(size.width - c, 0f)
-                lineTo(size.width, c)
-            } else {
-                lineTo(size.width, 0f)
-            }
-            if (br) {
-                lineTo(size.width, size.height - c)
-                lineTo(size.width - c, size.height)
-            } else {
-                lineTo(size.width, size.height)
-            }
-            if (bl) {
-                lineTo(c, size.height)
-                lineTo(0f, size.height - c)
-            } else {
-                lineTo(0f, size.height)
-            }
-            close()
-        }
-        return Outline.Generic(path)
-    }
+    ): Outline = delegate.createOutline(size, layoutDirection, density)
 }
 
 /**
- * HE OP 常用切角档位的便利工厂。
- *
- * 角度逻辑：
- *   - [standard] 主卡片 / panel — 切 TR + BL，14dp
- *   - [small]    chip / 按钮 / 输入框 — 切 TR + BL，7dp
- *   - [sheet]    底部 sheet — 仅切顶部 TL + TR，18dp
+ * 常用圆角档位便利工厂与语义化设计 Token。
  */
 object HeCut {
-    fun standard(cut: Dp = 14.dp): CutCornerShape = CutCornerShape(cut)
-    fun small(cut: Dp = 7.dp): CutCornerShape = CutCornerShape(cut)
-    fun chip(cut: Dp = 7.dp): CutCornerShape = CutCornerShape(cut)
-    fun sheet(cut: Dp = 18.dp): CutCornerShape =
+    fun standard(cut: Dp = 18.dp): CutCornerShape = CutCornerShape(cut)
+    fun small(cut: Dp = 10.dp): CutCornerShape = CutCornerShape(cut)
+    fun chip(cut: Dp = 10.dp): CutCornerShape = CutCornerShape(cut)
+    fun sheet(cut: Dp = 24.dp): CutCornerShape =
         CutCornerShape(cut, tl = true, tr = true, bl = false, br = false)
+}
+
+object HeShapes {
+    val Card = RoundedCornerShape(18.dp)
+    val Tile = RoundedCornerShape(14.dp)
+    val Button = RoundedCornerShape(14.dp)
+    val Chip = RoundedCornerShape(10.dp)
+    val Input = RoundedCornerShape(14.dp)
+    val Dialog = RoundedCornerShape(22.dp)
+    val Sheet = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
 }
 
 /** 角的语义枚举（用在 AngularPanel 的 corners 参数里）。 */
