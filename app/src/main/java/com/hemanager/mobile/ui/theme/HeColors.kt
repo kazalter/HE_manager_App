@@ -19,30 +19,75 @@ object HeColors {
     // 旧的蓝紫 token 在下方保留给 player / audio 模块，不要删。
     // ===================================================================
 
-    // ---- HE OP 表面层（偏冷的近黑） ----
-    val Void       = Color(0xFF08090C)  // 最深 — 顶级背景、状态条
-    val Ink        = Color(0xFF0F1014)  // 主背景
-    val Panel      = Color(0xFF16171D)  // 卡片背景
-    val OpSurface  = Color(0xFF1B1D25)  // 抬升卡片 / drawer item active
-    val SurfaceAlt = Color(0xFF23252F)
+    // ---- HE OP 表面层（偏冷的近黑 + 微层次） ----
+    val Void        = Color(0xFF07080B)  // 最深 — 顶级背景、状态条底色
+    val Ink         = Color(0xFF0E1016)  // 主背景底色
+    val Panel       = Color(0xFF141720)  // 卡片背景深处
+    val PanelLight  = Color(0xFF1D212D)  // 卡片顶部微光高光表面
+    val OpSurface   = Color(0xFF202534)  // 抬升卡片 / drawer item active
+    val SurfaceAlt  = Color(0xFF262C3D)
 
-    // ---- HE OP 描边（hairline 系统） ----
-    val Hairline    = Color(0x12FFFFFF) // alpha 0.07 — 标准 separator
+    // ---- 表面高质感微光渐变 ----
+    val PanelGradient = Brush.verticalGradient(
+        listOf(PanelLight, Panel)
+    )
+
+    // ---- HE OP 描边（hairline 系统 + 边缘双色光泽） ----
+    val Hairline    = Color(0x14FFFFFF) // alpha 0.08 — 标准 separator
     val HairlineMid = Color(0x24FFFFFF) // alpha 0.14 — 卡片描边
-    val HairlineHi  = Color(0x38FFFFFF) // alpha 0.22 — 强调描边
+    val HairlineHi  = Color(0x40FFFFFF) // alpha 0.25 — 强调描边 / 顶边缘反光
+    val HairlineRim = Brush.verticalGradient(
+        listOf(Color(0x38FFFFFF), Color(0x14FFFFFF))
+    )
 
     // ---- HE OP 文字 ----
-    val OpWhite      = Color(0xFFF2F1ED)  // 主文字
+    val OpWhite      = Color(0xFFF4F3EE)  // 主文字
     val OpWhiteSoft  = Color(0xFFB8B9C2)  // 次要文字
     val OpWhiteMuted = Color(0xFF6E6F78)  // muted / metadata
     val OpWhiteFaint = Color(0xFF3C3D45)  // 极淡 / disabled
 
-    // ---- HE OP 签名色：高饱和黄（绝对克制使用） ----
+    // ---- HE OP 签名色：高饱和黄 ----
     val Yellow     = Color(0xFFF5D800)
     val YellowDim  = Color(0xFFB8A100)
     val YellowSoft = Color(0x1AF5D800)  // alpha 0.10
 
-    // ---- HE OP 次要 accent（极少用） ----
+    // ---- CTA 渐变（更丰满灵动的暖金光感） ----
+    val CtaGradient = Brush.horizontalGradient(
+        listOf(Color(0xFFFFE054), Color(0xFFFFB300))
+    )
+
+    // ---- 媒体分类视觉色彩（赋予各类别独立辨识度，彻底告别单调） ----
+    val VideoAccent  = Color(0xFFFFB300) // 琥珀暖金 (Video)
+    val MangaAccent  = Color(0xFF00E676) // 霓虹薄荷绿 (Manga)
+    val ImageAccent  = Color(0xFF00E5FF) // 赛博青蓝 (Image)
+    val AudioAccent  = Color(0xFFE040FB) // 电光紫 (Audio)
+    val StarAccent   = Color(0xFFFF5252) // 收藏珊瑚红
+
+    fun mediaAccent(type: String?): Color = when (type?.lowercase()) {
+        "video" -> VideoAccent
+        "manga" -> MangaAccent
+        "image" -> ImageAccent
+        "audio" -> AudioAccent
+        else -> Yellow
+    }
+
+    fun mediaChipBg(type: String?): Color = when (type?.lowercase()) {
+        "video" -> Color(0x28FFB300)
+        "manga" -> Color(0x2800E676)
+        "image" -> Color(0x2800E5FF)
+        "audio" -> Color(0x28E040FB)
+        else -> Color(0x28F5D800)
+    }
+
+    fun mediaChipBorder(type: String?): Color = when (type?.lowercase()) {
+        "video" -> VideoAccent.copy(alpha = 0.45f)
+        "manga" -> MangaAccent.copy(alpha = 0.45f)
+        "image" -> ImageAccent.copy(alpha = 0.45f)
+        "audio" -> AudioAccent.copy(alpha = 0.45f)
+        else -> Yellow.copy(alpha = 0.45f)
+    }
+
+    // ---- HE OP 次要 accent ----
     val Cyan       = Color(0xFF5CE5D7)
     val CyanSoft   = Color(0x1A5CE5D7)
 

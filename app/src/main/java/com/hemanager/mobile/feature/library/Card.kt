@@ -157,15 +157,23 @@ internal fun MediaCardV2(
                             .padding(12.dp)
                     )
                     if (item.favorite) {
-                        Icon(
-                            Icons.Default.Star,
-                            contentDescription = "收藏",
-                            tint = com.hemanager.mobile.ui.theme.HeColors.Yellow,
+                        Box(
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
                                 .padding(12.dp)
-                                .size(16.dp),
-                        )
+                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                .background(Color.Black.copy(alpha = 0.65f))
+                                .border(1.dp, com.hemanager.mobile.ui.theme.HeColors.StarAccent.copy(alpha = 0.45f), androidx.compose.foundation.shape.CircleShape)
+                                .padding(6.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Star,
+                                contentDescription = "收藏",
+                                tint = com.hemanager.mobile.ui.theme.HeColors.StarAccent,
+                                modifier = Modifier.size(15.dp),
+                            )
+                        }
                     }
                     if (item.mediaType == "manga" && item.pageCount > 0) {
                         com.hemanager.mobile.ui.op.CodeChip(
@@ -193,7 +201,7 @@ internal fun MediaCardV2(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         com.hemanager.mobile.ui.op.CodeChip(
                             text = fakeCode(item),
-                            color = com.hemanager.mobile.ui.theme.HeColors.Yellow,
+                            color = accent,
                         )
                         Spacer(Modifier.weight(1f))
                         when (item.viewStatus) {
@@ -234,7 +242,8 @@ internal fun MediaCardV2(
                     ) {
                         com.hemanager.mobile.ui.op.ProgressO(
                             value = progress ?: 0f,
-                            height = 2.5.dp,
+                            height = 3.dp,
+                            color = accent,
                         )
                     }
                     if (item.missing || (item.mediaType == "manga" && (item.viewStatus == "viewing" || item.viewStatus == "viewed"))) {
@@ -714,21 +723,36 @@ internal fun MediaGridTileV2(
                             .fillMaxWidth()
                             .aspectRatio(0.74f)
                     )
+                    com.hemanager.mobile.ui.op.TypeChip(
+                        mediaType = item.mediaType,
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(6.dp)
+                    )
                     if (item.favorite) {
-                        Icon(
-                            Icons.Default.Star,
-                            contentDescription = "收藏",
-                            tint = com.hemanager.mobile.ui.theme.HeColors.Yellow,
+                        Box(
                             modifier = Modifier
-                                .align(Alignment.BottomStart)
-                                .padding(7.dp)
-                                .size(13.dp)
-                        )
+                                .align(Alignment.TopEnd)
+                                .padding(6.dp)
+                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                .background(Color.Black.copy(alpha = 0.65f))
+                                .border(1.dp, com.hemanager.mobile.ui.theme.HeColors.StarAccent.copy(alpha = 0.45f), androidx.compose.foundation.shape.CircleShape)
+                                .padding(4.5.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Star,
+                                contentDescription = "收藏",
+                                tint = com.hemanager.mobile.ui.theme.HeColors.StarAccent,
+                                modifier = Modifier.size(11.dp)
+                            )
+                        }
                     }
                     if (progress != null) {
                         com.hemanager.mobile.ui.op.ProgressO(
                             value = progress,
-                            height = 2.dp,
+                            height = 2.5.dp,
+                            color = accent,
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .fillMaxWidth(),
@@ -750,6 +774,7 @@ internal fun MediaGridTileV2(
                 Spacer(Modifier.height(4.dp))
                 com.hemanager.mobile.ui.op.CodeChip(
                     text = fakeCode(item),
+                    color = accent,
                     fontSize = 11.5.sp,
                     modifier = Modifier.padding(horizontal = 2.dp),
                 )

@@ -24,10 +24,10 @@ import kotlin.math.floor
 @Composable
 internal fun statusAccentV2(value: String): Color {
     return when (value) {
-        "viewing" -> MaterialTheme.colorScheme.primary
-        "favorite" -> Color(0xFFF6C46B)
-        "viewed" -> Color(0xFF58E6C2)
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
+        "viewing" -> com.hemanager.mobile.ui.theme.HeColors.Yellow
+        "favorite" -> com.hemanager.mobile.ui.theme.HeColors.StarAccent
+        "viewed" -> com.hemanager.mobile.ui.theme.HeColors.Online
+        else -> com.hemanager.mobile.ui.theme.HeColors.OpWhiteSoft
     }
 }
 
@@ -203,24 +203,12 @@ internal fun progressFraction(item: MediaItem): Float? {
 
 @Composable
 internal fun filterAccent(value: String): Color {
-    return when (value) {
-        "video" -> MaterialTheme.colorScheme.secondary
-        "manga" -> MaterialTheme.colorScheme.tertiary
-        "image" -> Color(0xFFFF8FA3)
-        "audio" -> Color(0xFF67E8F9)
-        else -> MaterialTheme.colorScheme.primary
-    }
+    return com.hemanager.mobile.ui.theme.HeColors.mediaAccent(value)
 }
 
 @Composable
 internal fun typeAccent(type: String?): Color {
-    return when (type) {
-        "video" -> MaterialTheme.colorScheme.secondary
-        "manga" -> MaterialTheme.colorScheme.tertiary
-        "image" -> Color(0xFFFF8FA3)
-        "audio" -> Color(0xFF67E8F9)
-        else -> MaterialTheme.colorScheme.primary
-    }
+    return com.hemanager.mobile.ui.theme.HeColors.mediaAccent(type)
 }
 
 

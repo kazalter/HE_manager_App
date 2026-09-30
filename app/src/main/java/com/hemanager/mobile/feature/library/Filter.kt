@@ -258,15 +258,15 @@ internal fun SearchAndFilterPanelV2(
                 .fillMaxWidth()
                 .heightIn(min = 48.dp)
                 .clip(searchShape)
-                .background(com.hemanager.mobile.ui.theme.HeColors.Panel)
-                .border(1.dp, com.hemanager.mobile.ui.theme.HeColors.HairlineMid, searchShape)
+                .background(com.hemanager.mobile.ui.theme.HeColors.PanelGradient)
+                .border(1.dp, com.hemanager.mobile.ui.theme.HeColors.HairlineRim, searchShape)
                 .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 Icons.Default.Search,
                 contentDescription = null,
-                tint = com.hemanager.mobile.ui.theme.HeColors.OpWhiteMuted,
+                tint = if (search.isNotBlank()) com.hemanager.mobile.ui.theme.HeColors.Yellow else com.hemanager.mobile.ui.theme.HeColors.OpWhiteMuted,
                 modifier = Modifier.size(18.dp),
             )
             Spacer(Modifier.width(10.dp))
@@ -320,14 +320,14 @@ internal fun SearchAndFilterPanelV2(
             onStatusSelected = onStatusSelected
         )
 
-        // 筛选展开行：圆角 + hairline + 优雅标签
+        // 筛选展开行：圆角 + 微光渐变 + hairline + 优雅标签
         val expandShape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(expandShape)
-                .background(com.hemanager.mobile.ui.theme.HeColors.Panel)
-                .border(1.dp, com.hemanager.mobile.ui.theme.HeColors.HairlineMid, expandShape)
+                .background(com.hemanager.mobile.ui.theme.HeColors.PanelGradient)
+                .border(1.dp, com.hemanager.mobile.ui.theme.HeColors.HairlineRim, expandShape)
                 .clickable { onOpenFilters() }
                 .padding(horizontal = 14.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -363,7 +363,7 @@ internal fun SearchAndFilterPanelV2(
                 Box(
                     modifier = Modifier
                         .clip(androidx.compose.foundation.shape.RoundedCornerShape(6.dp))
-                        .background(com.hemanager.mobile.ui.theme.HeColors.Yellow)
+                        .background(com.hemanager.mobile.ui.theme.HeColors.CtaGradient)
                         .padding(horizontal = 7.dp, vertical = 2.5.dp),
                 ) {
                     Text(
@@ -404,7 +404,7 @@ internal fun QuickFilterRowV2(
         QuickFilterChipV2(
             label = "全部",
             selected = mediaValue.isBlank() && statusValue.isBlank(),
-            accent = MaterialTheme.colorScheme.primary,
+            accent = com.hemanager.mobile.ui.theme.HeColors.Yellow,
             onClick = {
                 onMediaSelected("")
                 onStatusSelected("")
@@ -431,11 +431,11 @@ internal fun QuickFilterRowV2(
 
 @Composable
 internal fun QuickFilterChipV2(label: String, selected: Boolean, accent: Color, onClick: () -> Unit) {
-    // HE OP — accent 不再决定选中色（统一黄），保留参数兼容签名。
     com.hemanager.mobile.ui.op.FilterTab(
         label = label,
         en = null,
         active = selected,
+        accentColor = accent,
         onClick = onClick,
     )
 }

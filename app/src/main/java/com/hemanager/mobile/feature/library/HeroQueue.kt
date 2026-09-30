@@ -4,6 +4,7 @@ package com.hemanager.mobile.feature.library
 // 只在 mediaFilter / statusFilter 全空 且 有 viewing 项时显示，避免和筛选模式冲突。
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -74,12 +75,14 @@ internal fun HeroFeature(
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     val heroHeight = (screenHeight * 0.56f).coerceIn(340.dp, 430.dp)
 
+    val heroShape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(heroHeight)
-            .clip(androidx.compose.foundation.shape.RoundedCornerShape(20.dp))
-            .background(HeColors.Panel),
+            .clip(heroShape)
+            .background(HeColors.PanelGradient)
+            .border(1.dp, HeColors.HairlineRim, heroShape),
     ) {
         // 封面层
         RemoteCoverV2(
@@ -98,13 +101,13 @@ internal fun HeroFeature(
                 .background(
                     Brush.verticalGradient(
                         0f   to Color.Transparent,
-                        0.45f to Color.Transparent,
-                        1f   to HeColors.Ink.copy(alpha = 0.96f),
+                        0.40f to Color.Transparent,
+                        1f   to HeColors.Ink.copy(alpha = 0.94f),
                     )
                 )
         )
 
-        // 顶部装饰：左 28×3 黄短线 + 右 CodeChip
+        // 顶部装饰：左 28×3 分类色短线 + 右 CodeChip
         Row(
             modifier = Modifier
                 .align(Alignment.TopStart)
@@ -115,12 +118,12 @@ internal fun HeroFeature(
             Box(
                 Modifier
                     .width(28.dp)
-                    .height(3.dp)
+                    .height(3.5.dp)
                     .clip(androidx.compose.foundation.shape.CircleShape)
-                    .background(HeColors.Yellow)
+                    .background(accent)
             )
             Spacer(Modifier.weight(1f))
-            CodeChip(text = fakeCode(item), color = HeColors.Yellow)
+            CodeChip(text = fakeCode(item), color = accent)
         }
 
         // 底部内容栈
@@ -169,7 +172,7 @@ internal fun HeroFeature(
                 )
             }
             if (progress != null) {
-                ProgressO(value = progress, height = 3.dp)
+                ProgressO(value = progress, height = 3.5.dp, color = accent)
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),

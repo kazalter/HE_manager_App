@@ -22,11 +22,15 @@ import com.hemanager.mobile.ui.theme.GeistMono
 import com.hemanager.mobile.ui.theme.HeColors
 import com.hemanager.mobile.ui.theme.Oxanium
 
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Brush
+
 /**
- * 极细黄色进度条。背景 HairlineMid，填充 Yellow。
+ * 现代平滑光感进度条。圆角端点 + 渐变填充。
  *
  * @param value 0..1 进度；自动 coerce 到 [0.02, 1] 保证最少有一截可见。
- * @param height 卡片上用 2dp，hero 上用 3dp。
+ * @param height 卡片上用 2.5dp，hero 上用 3.5dp。
  */
 @Composable
 fun ProgressO(
@@ -35,17 +39,27 @@ fun ProgressO(
     height: Dp = 3.dp,
     color: Color = HeColors.Yellow,
 ) {
+    val shape = RoundedCornerShape(height / 2)
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(height)
+            .clip(shape)
             .background(HeColors.HairlineMid),
     ) {
         Box(
             modifier = Modifier
                 .fillMaxHeight()
                 .fillMaxWidth(value.coerceIn(0.02f, 1f))
-                .background(color),
+                .clip(shape)
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            color.copy(alpha = 0.82f),
+                            color,
+                        )
+                    )
+                ),
         )
     }
 }

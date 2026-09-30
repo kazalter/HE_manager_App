@@ -141,6 +141,12 @@ internal fun MediaDetailRowV2(
                         cutDp = 10.dp,
                         modifier = Modifier.fillMaxSize()
                     )
+                    com.hemanager.mobile.ui.op.TypeChip(
+                        mediaType = item.mediaType,
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(5.dp)
+                    )
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(
@@ -153,13 +159,13 @@ internal fun MediaDetailRowV2(
                     ) {
                         com.hemanager.mobile.ui.op.CodeChip(
                             text = fakeCode(item),
-                            color = com.hemanager.mobile.ui.theme.HeColors.Yellow,
+                            color = accent,
                         )
                         if (item.favorite) {
                             Icon(
                                 Icons.Default.Star,
                                 contentDescription = "收藏",
-                                tint = com.hemanager.mobile.ui.theme.HeColors.Yellow,
+                                tint = com.hemanager.mobile.ui.theme.HeColors.StarAccent,
                                 modifier = Modifier.size(13.dp)
                             )
                         }
@@ -179,7 +185,8 @@ internal fun MediaDetailRowV2(
                     if (progress != null) {
                         com.hemanager.mobile.ui.op.ProgressO(
                             value = progress,
-                            height = 2.dp,
+                            height = 2.5.dp,
+                            color = accent,
                         )
                     }
                     Row(
@@ -211,11 +218,13 @@ internal fun MediaDetailRowV2(
 
 @Composable
 internal fun TinyBadgeV2(label: String, color: Color, modifier: Modifier = Modifier) {
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(6.dp)
     Box(
         modifier = modifier
-            .clip(androidx.compose.foundation.shape.RoundedCornerShape(6.dp))
-            .background(Color.Black.copy(alpha = 0.7f))
-            .padding(horizontal = 8.dp, vertical = 3.5.dp),
+            .clip(shape)
+            .background(color.copy(alpha = 0.18f))
+            .border(1.dp, color.copy(alpha = 0.45f), shape)
+            .padding(horizontal = 7.5.dp, vertical = 3.dp),
     ) {
         Text(
             label,
@@ -223,7 +232,7 @@ internal fun TinyBadgeV2(label: String, color: Color, modifier: Modifier = Modif
             fontFamily = com.hemanager.mobile.ui.theme.GeistMono,
             fontSize = 11.5.sp,
             fontWeight = FontWeight.Bold,
-            letterSpacing = 0.5.sp,
+            letterSpacing = 0.6.sp,
             maxLines = 1,
         )
     }
@@ -246,7 +255,8 @@ internal fun RemoteCoverV2(
     Box(
         modifier = modifier
             .clip(shape)
-            .background(com.hemanager.mobile.ui.theme.HeColors.Panel),
+            .background(com.hemanager.mobile.ui.theme.HeColors.Panel)
+            .border(1.dp, Color.White.copy(alpha = 0.08f), shape),
         contentAlignment = Alignment.Center
     ) {
         // 占位文字（图未加载时显示）
@@ -272,8 +282,8 @@ internal fun RemoteCoverV2(
                 .background(
                     Brush.verticalGradient(
                         0f   to Color.Transparent,
-                        0.5f to Color.Transparent,
-                        1f   to com.hemanager.mobile.ui.theme.HeColors.Ink.copy(alpha = 0.78f),
+                        0.45f to Color.Transparent,
+                        1f   to com.hemanager.mobile.ui.theme.HeColors.Ink.copy(alpha = 0.82f),
                     )
                 )
         )
@@ -286,7 +296,7 @@ internal fun FloatingPlayButtonV2(label: String, onClick: () -> Unit, modifier: 
     Row(
         modifier = modifier
             .clip(shape)
-            .background(com.hemanager.mobile.ui.theme.HeColors.Yellow)
+            .background(com.hemanager.mobile.ui.theme.HeColors.CtaGradient)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -295,14 +305,14 @@ internal fun FloatingPlayButtonV2(label: String, onClick: () -> Unit, modifier: 
             Icons.Default.PlayArrow,
             contentDescription = null,
             tint = com.hemanager.mobile.ui.theme.HeColors.OnYellow,
-            modifier = Modifier.size(15.dp)
+            modifier = Modifier.size(16.dp)
         )
         Spacer(Modifier.width(4.dp))
         Text(
             label,
             color = com.hemanager.mobile.ui.theme.HeColors.OnYellow,
             fontFamily = com.hemanager.mobile.ui.theme.NotoSansSC,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.Black,
             fontSize = 12.5.sp,
             letterSpacing = 0.8.sp,
         )
@@ -458,24 +468,29 @@ internal fun SkeletonBlockV2(modifier: Modifier, alpha: Float) {
 
 @Composable
 internal fun StatusPillV2(label: String, color: Color, modifier: Modifier = Modifier) {
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(6.dp)
     Row(
-        modifier = modifier,
+        modifier = modifier
+            .clip(shape)
+            .background(color.copy(alpha = 0.12f))
+            .border(1.dp, color.copy(alpha = 0.32f), shape)
+            .padding(horizontal = 8.dp, vertical = 3.5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             Modifier
-                .size(6.dp)
+                .size(5.dp)
                 .clip(CircleShape)
                 .background(color)
         )
-        Spacer(Modifier.width(6.dp))
+        Spacer(Modifier.width(5.5.dp))
         Text(
             label,
             color = color,
             fontFamily = com.hemanager.mobile.ui.theme.Oxanium,
             fontWeight = FontWeight.Bold,
-            fontSize = 11.5.sp,
-            letterSpacing = 1.2.sp,
+            fontSize = 11.sp,
+            letterSpacing = 1.1.sp,
             maxLines = 1,
         )
     }
@@ -506,13 +521,11 @@ internal fun ActionPillV2(label: String, color: Color, onClick: () -> Unit) {
 
 @Composable
 internal fun AppBackgroundBrushV2(): Brush {
-    // HE OP — 顶部极淡 amber bloom 渐变到 Ink，模拟工业终端的环境光感
-    return Brush.radialGradient(
-        colorStops = arrayOf(
-            0f   to com.hemanager.mobile.ui.theme.HeColors.Yellow.copy(alpha = 0.024f),
-            0.4f to com.hemanager.mobile.ui.theme.HeColors.Ink,
-            1f   to com.hemanager.mobile.ui.theme.HeColors.Void
-        ),
-        radius = 1400f
+    // 现代深空微光渐变：顶部深靛蓝天光微妙晕染，向下过渡至曜石近黑，赋予全屏呼吸感与纵深空间
+    return Brush.verticalGradient(
+        0f to Color(0xFF131722),
+        0.22f to com.hemanager.mobile.ui.theme.HeColors.Ink,
+        0.70f to Color(0xFF090B0F),
+        1f to com.hemanager.mobile.ui.theme.HeColors.Void,
     )
 }

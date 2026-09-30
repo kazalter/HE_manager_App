@@ -20,15 +20,19 @@ import com.hemanager.mobile.ui.theme.Corner
 import com.hemanager.mobile.ui.theme.CutCornerShape
 import com.hemanager.mobile.ui.theme.HeColors
 
+import androidx.compose.ui.graphics.Brush
+
 /**
- * HE OP 主面板容器：切角 + hairline 描边 + 可选黄角封口。
+ * HE OP 主面板容器：现代圆角 + 表面微光渐变 + 顶边高光 rim hairline 描边。
  *
- * **实装注意**：hairline 描边走 `Modifier.border(1.dp, color, shape)`——直接画在 shape 上，
- * 与切角天然贴合，不会有 sub-pixel 抖动（这是文档里反复强调的坑）。
+ * 通过顶部到深处的微妙渐变（PanelLight → Panel）配合顶边缘集光描边，
+ * 解决原本整块纯色深灰造成的「UI 太素、像平铺贴纸」的视觉痛点。
  *
- * @param corners 哪些角切角，默认 TR + BL
- * @param yellowCorner true 时在 TR 角叠一个黄色三角"封口"装饰
- * @param hairline true 时画 1dp `HairlineMid` 描边
+ * @param cut 圆角尺寸（dp）
+ * @param corners 哪些角切角/圆角
+ * @param background 背景纯色（默认 HeColors.Panel，此时自动启用高级微光渐变）
+ * @param brush 自定义渐变笔刷（非空时优先使用）
+ * @param hairline true 时绘制高质感双色 rim 描边
  */
 @Composable
 fun AngularPanel(
@@ -36,6 +40,7 @@ fun AngularPanel(
     cut: Dp = 18.dp,
     corners: Set<Corner> = setOf(Corner.TL, Corner.TR, Corner.BR, Corner.BL),
     background: Color = HeColors.Panel,
+    brush: Brush? = null,
     yellowCorner: Boolean = false,
     hairline: Boolean = true,
     contentPadding: PaddingValues = PaddingValues(16.dp),
@@ -48,11 +53,22 @@ fun AngularPanel(
         br = Corner.BR in corners,
         bl = Corner.BL in corners,
     )
+
+    val bgModifier = when {
+        brush != null -> Modifier.background(brush)
+        background == HeColors.Panel -> Modifier.background(HeColors.PanelGradient)
+        else -> Modifier.background(background)
+    }
+
+    val borderModifier = if (hairline) {
+        Modifier.border(1.dp, HeColors.HairlineRim, shape)
+    } else Modifier
+
     Box(
         modifier = modifier
             .clip(shape)
-            .background(background)
-            .then(if (hairline) Modifier.border(1.dp, HeColors.HairlineMid, shape) else Modifier)
+            .then(bgModifier)
+            .then(borderModifier)
             .padding(contentPadding),
         content = content,
     )

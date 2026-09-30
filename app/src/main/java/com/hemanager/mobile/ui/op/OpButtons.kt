@@ -43,7 +43,7 @@ private fun metricsFor(size: CtaSize): CtaMetrics = when (size) {
 }
 
 /**
- * 主 CTA：黄底圆角，OnYellow 文字，高对比度清晰排版。
+ * 主 CTA：灵动暖金渐变圆角，OnYellow 文字，高对比度清晰排版。
  */
 @Composable
 fun YellowCTA(
@@ -60,7 +60,7 @@ fun YellowCTA(
         modifier = modifier
             .then(if (fullWidth) Modifier.fillMaxWidth() else Modifier)
             .clip(shape)
-            .background(HeColors.Yellow)
+            .background(HeColors.CtaGradient)
             .clickable { onClick() }
             .padding(horizontal = m.padH, vertical = m.padV),
     ) {
@@ -93,7 +93,7 @@ fun YellowCTA(
 }
 
 /**
- * 次级按钮：深色背景 + 1dp HairlineMid 描边 + 白字 + 平滑圆角。
+ * 次级按钮：表面微光背景 + 高光 rim 描边 + 白字 + 平滑圆角。
  */
 @Composable
 fun GhostCta(
@@ -110,8 +110,8 @@ fun GhostCta(
         modifier = modifier
             .then(if (fullWidth) Modifier.fillMaxWidth() else Modifier)
             .clip(shape)
-            .background(HeColors.Ink)
-            .border(1.dp, HeColors.HairlineMid, shape)
+            .background(HeColors.PanelGradient)
+            .border(1.dp, HeColors.HairlineRim, shape)
             .clickable { onClick() }
             .padding(horizontal = m.padH, vertical = m.padV),
     ) {
@@ -144,7 +144,7 @@ fun GhostCta(
 }
 
 /**
- * 筛选条上的平滑圆角小药丸：active 时黄底，否则半透明 + hairline 描边。
+ * 筛选条上的平滑圆角小药丸：支持分类专属 accent 激活色，未激活时带精致特征微点。
  */
 @Composable
 fun FilterTab(
@@ -153,32 +153,47 @@ fun FilterTab(
     active: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    accentColor: Color = HeColors.Yellow,
 ) {
     val shape = CutCornerShape(10.dp)
-    val bgMod = if (active)
-        Modifier.background(HeColors.Yellow)
-    else
-        Modifier.background(HeColors.Panel.copy(alpha = 0.65f)).border(1.dp, HeColors.HairlineMid, shape)
-    val labelColor = if (active) HeColors.OnYellow else HeColors.OpWhiteSoft
+    val bgMod = if (active) {
+        Modifier
+            .background(accentColor)
+            .border(1.dp, accentColor, shape)
+    } else {
+        Modifier
+            .background(HeColors.Panel.copy(alpha = 0.70f))
+            .border(1.dp, HeColors.HairlineMid, shape)
+    }
+    val labelColor = if (active) Color(0xFF0E0F00) else HeColors.OpWhiteSoft
 
     Box(
         modifier = modifier
             .clip(shape)
             .then(bgMod)
             .clickable { onClick() }
-            .padding(horizontal = 15.dp, vertical = 8.dp)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(7.dp),
         ) {
-            if (active) Diamond(6.dp, color = HeColors.OnYellow)
+            if (active) {
+                Diamond(5.5.dp, color = Color(0xFF0E0F00))
+            } else if (accentColor != HeColors.Yellow) {
+                Box(
+                    modifier = Modifier
+                        .size(5.5.dp)
+                        .clip(CircleShape)
+                        .background(accentColor)
+                )
+            }
             Text(
                 text = label,
                 color = labelColor,
                 fontFamily = com.hemanager.mobile.ui.theme.NotoSansSC,
                 fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
+                fontWeight = if (active) FontWeight.Black else FontWeight.Bold,
                 letterSpacing = 0.2.sp,
             )
             if (en != null) {

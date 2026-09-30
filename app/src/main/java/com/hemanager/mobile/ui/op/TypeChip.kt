@@ -11,12 +11,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.hemanager.mobile.ui.theme.GeistMono
 import com.hemanager.mobile.ui.theme.HeColors
 
 /**
- * 媒体类型小药丸：半透明黑色背景 + 黄色高对比 mono 编码，平滑圆角。
+ * 媒体类型小药丸：根据媒体类型独立赋予特征色（Amber/Emerald/Cyan/Purple），
+ * 搭配微透发光玻璃底色与柔和边框，解决纯黄单色造成的平淡素气。
  *
  * 映射：video → VID / manga → MNG / image → IMG / audio → AUD / 其他 → MED。
  */
@@ -26,20 +28,25 @@ fun TypeChip(
     modifier: Modifier = Modifier,
     onYellow: Boolean = false,
 ) {
-    val code = when (mediaType) {
+    val code = when (mediaType.lowercase()) {
         "video" -> "VID"
         "manga" -> "MNG"
         "image" -> "IMG"
         "audio" -> "AUD"
         else -> "MED"
     }
-    val bg = if (onYellow) HeColors.Yellow else Color.Black.copy(alpha = 0.72f)
-    val fg = if (onYellow) HeColors.OnYellow else HeColors.Yellow
+    val accent = HeColors.mediaAccent(mediaType)
+    val bg = if (onYellow) HeColors.Yellow else HeColors.mediaChipBg(mediaType)
+    val fg = if (onYellow) HeColors.OnYellow else accent
+    val border = if (onYellow) Color.Transparent else HeColors.mediaChipBorder(mediaType)
+    val shape = RoundedCornerShape(7.dp)
+
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(6.dp))
+            .clip(shape)
             .background(bg)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .border(1.dp, border, shape)
+            .padding(horizontal = 8.5.dp, vertical = 3.5.dp),
     ) {
         Text(
             text = code,
@@ -47,7 +54,7 @@ fun TypeChip(
             fontFamily = GeistMono,
             fontSize = 11.5.sp,
             fontWeight = FontWeight.Bold,
-            letterSpacing = 0.6.sp,
+            letterSpacing = 0.8.sp,
         )
     }
 }

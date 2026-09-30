@@ -299,8 +299,8 @@ private fun SettingsGroup(
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(HeColors.Panel.copy(alpha = 0.94f))
-            .border(1.dp, HeColors.HairlineMid, shape)
+            .background(HeColors.PanelGradient)
+            .border(1.dp, HeColors.HairlineRim, shape)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {

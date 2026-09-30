@@ -136,6 +136,7 @@ internal fun AppDrawerV2(
                             icon = Icons.Default.History,
                             active = selectedStatusValue == "viewing",
                             count = items.count { it.viewStatus == "viewing" },
+                            accentColor = com.hemanager.mobile.ui.theme.HeColors.Yellow,
                             onClick = { onStatusSelected("viewing") }
                         )
                         DNavRow(
@@ -143,12 +144,14 @@ internal fun AppDrawerV2(
                             icon = Icons.Default.StarBorder,
                             active = selectedStatusValue == "favorite",
                             count = items.count { it.favorite },
+                            accentColor = com.hemanager.mobile.ui.theme.HeColors.StarAccent,
                             onClick = { onStatusSelected("favorite") }
                         )
                         DNavRow(
                             cn = "创作者", en = "Curators",
                             icon = Icons.Default.LocalOffer,
                             active = false,
+                            accentColor = Color(0xFF818CF8),
                             onClick = onOpenCreators
                         )
 
@@ -171,12 +174,14 @@ internal fun AppDrawerV2(
                         com.hemanager.mobile.ui.op.Slash(cn = "媒体分类", en = "Library", fontSize = 12.5.sp)
                         Spacer(Modifier.height(6.dp))
                         filters.forEach { option ->
+                            val catAccent = com.hemanager.mobile.ui.theme.HeColors.mediaAccent(option.value)
                             DNavRow(
                                 cn = option.label,
                                 en = categoryEnLabel(option.value),
                                 icon = categoryIcon(option.value),
                                 active = selectedValue == option.value && selectedStatusValue.isBlank(),
                                 count = countForFilter(items, option.value),
+                                accentColor = catAccent,
                                 onClick = { onSelected(option.value) }
                             )
                         }
@@ -376,32 +381,43 @@ private fun DNavRow(
     active: Boolean,
     onClick: () -> Unit,
     count: Int? = null,
+    accentColor: Color = com.hemanager.mobile.ui.theme.HeColors.Yellow,
 ) {
     val shape = RoundedCornerShape(10.dp)
+    val activeModifier = if (active) {
+        Modifier
+            .clip(shape)
+            .background(accentColor.copy(alpha = 0.12f))
+            .border(1.dp, accentColor.copy(alpha = 0.28f), shape)
+    } else Modifier
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .then(if (active) Modifier.clip(shape).background(com.hemanager.mobile.ui.theme.HeColors.OpSurface) else Modifier)
+            .then(activeModifier)
             .clickable(onClick = onClick)
             .padding(start = 14.dp, top = 10.dp, end = 12.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // 左侧 active 黄竖条
+        // 左侧 active 分类条
         if (active) {
             Box(
                 modifier = Modifier
                     .width(3.dp)
                     .height(22.dp)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(com.hemanager.mobile.ui.theme.HeColors.Yellow)
+                    .background(accentColor)
             )
             Spacer(Modifier.width(10.dp))
         }
+        val iconTint = if (active) accentColor
+        else if (accentColor != com.hemanager.mobile.ui.theme.HeColors.Yellow) accentColor.copy(alpha = 0.88f)
+        else com.hemanager.mobile.ui.theme.HeColors.OpWhiteSoft
+
         Icon(
             icon,
             contentDescription = null,
-            tint = if (active) com.hemanager.mobile.ui.theme.HeColors.Yellow
-                   else com.hemanager.mobile.ui.theme.HeColors.OpWhiteSoft,
+            tint = iconTint,
             modifier = Modifier.size(18.dp),
         )
         Spacer(Modifier.width(12.dp))
@@ -409,7 +425,7 @@ private fun DNavRow(
             if (en.isNotEmpty()) {
                 Text(
                     en,
-                    color = if (active) com.hemanager.mobile.ui.theme.HeColors.Yellow
+                    color = if (active) accentColor
                             else com.hemanager.mobile.ui.theme.HeColors.OpWhiteMuted,
                     fontFamily = com.hemanager.mobile.ui.theme.Oxanium,
                     fontWeight = FontWeight.Bold,
@@ -430,7 +446,7 @@ private fun DNavRow(
         if (count != null) {
             Text(
                 count.toString().padStart(2, '0'),
-                color = if (active) com.hemanager.mobile.ui.theme.HeColors.Yellow
+                color = if (active) accentColor
                         else com.hemanager.mobile.ui.theme.HeColors.OpWhiteMuted,
                 fontFamily = com.hemanager.mobile.ui.theme.GeistMono,
                 fontWeight = FontWeight.SemiBold,
