@@ -146,6 +146,12 @@ internal fun WebToolScreen(origin: String, token: String, route: String, title: 
                         settings.javaScriptCanOpenWindowsAutomatically = false
                         settings.mediaPlaybackRequiresUserGesture = true
                         settings.setSupportMultipleWindows(false)
+                        fun updateViewport(view: WebView) {
+                            if (view.height <= 0) return
+                            val cssHeight = (view.height / view.resources.displayMetrics.density).toInt().coerceAtLeast(1)
+                            view.evaluateJavascript("document.documentElement.style.setProperty('--he-app-height', '${cssHeight}px', 'important');", null)
+                        }
+                        addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ -> updateViewport(view as WebView) }
                         var bootstrap = true
                         webViewClient = object : WebViewClient() {
                             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
@@ -177,6 +183,9 @@ internal fun WebToolScreen(origin: String, token: String, route: String, title: 
                                     """.trimIndent(), null)
                                 }
                                 canGoBack = view.canGoBack()
+                            }
+                            override fun onPageCommitVisible(view: WebView, url: String) {
+                                if (WebEndpoint.sameOrigin(origin, url)) updateViewport(view)
                             }
                             override fun onReceivedError(view: WebView, request: WebResourceRequest, failure: WebResourceError) {
                                 if (request.isForMainFrame) error = "页面加载失败：${failure.description}"
