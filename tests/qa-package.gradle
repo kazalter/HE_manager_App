@@ -1,0 +1,7 @@
+allprojects {
+  pluginManager.withPlugin('com.android.application') {
+    androidComponents.finalizeDsl { extension ->
+      extension.defaultConfig.applicationId = 'com.hemanager.mobile.qa'
+    }
+  }
+}

@@ -16,6 +16,21 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -33,6 +48,10 @@ import com.hemanager.mobile.feature.creators.CreatorsScreen
 import com.hemanager.mobile.feature.library.LibraryScreenV2
 import com.hemanager.mobile.feature.login.LoginScreen
 import com.hemanager.mobile.feature.settings.SettingsScreen
+import com.hemanager.mobile.feature.tools.ToolsScreen
+import com.hemanager.mobile.ui.theme.HeColors
+import com.hemanager.mobile.ui.host.rememberRetainedScreenLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.hemanager.mobile.ui.components.LocalCoverImageLoader
 import com.hemanager.mobile.ui.host.HostUiController
 import com.hemanager.mobile.ui.host.LocalHostUiController
@@ -396,55 +415,66 @@ class MainActivity : ComponentActivity(), HostUiController {
                 }
             )
         } else {
-            // rememberSaveable：creators 屏幕标志要跨 Activity 重建保留（config 改、
-            // process death after 打开重型播放器 Activity）。普通 remember 在返回路径
-            // 上 reset 为 false，会掉到 library 根，再一次返回直接退 App。
-            var showCreators by androidx.compose.runtime.saveable.rememberSaveable {
-                mutableStateOf(false)
+            var tab by androidx.compose.runtime.saveable.rememberSaveable(serverUrl, token) { mutableStateOf(0) }
+            var toolDetail by remember { mutableStateOf(false) }
+            var libraryEdgeEnabled by remember { mutableStateOf(false) }
+            var previousTab by remember { mutableStateOf(0) }
+            val libraryLifecycle = rememberRetainedScreenLifecycle(tab == 0)
+            val logout = {
+                android.webkit.WebStorage.getInstance().deleteAllData()
+                prefs.clearToken()
+                token = ""
+                tab = 0
             }
-            var showSettings by androidx.compose.runtime.saveable.rememberSaveable {
-                mutableStateOf(false)
+            // The library stays mounted under secondary screens so filters, scroll and
+            // the native gallery survive trips into import and management tools.
+            LaunchedEffect(tab) {
+                if (tab != 0 && previousTab == 0) {
+                    libraryEdgeEnabled = edgeDrawerGestureEnabled
+                    edgeDrawerGestureEnabled = false
+                } else if (tab == 0 && previousTab != 0) edgeDrawerGestureEnabled = libraryEdgeEnabled
+                previousTab = tab
+                if (tab != 1) setCreatorsScreenActive(false)
             }
-            if (showCreators) {
-                CreatorsScreen(
-                    serverUrl = serverUrl,
-                    token = token,
-                    onBack = { showCreators = false },
-                    onLogout = {
-                        showCreators = false
-                        prefs.clearToken()
-                        token = ""
+            Column(Modifier.fillMaxSize()) {
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                    Box(if (tab == 0) Modifier.fillMaxSize() else Modifier.fillMaxSize().clearAndSetSemantics {}) {
+                        CompositionLocalProvider(LocalLifecycleOwner provides libraryLifecycle) {
+                            LibraryScreenV2(
+                                serverUrl = serverUrl,
+                                token = token,
+                                onOpenCreators = { tab = 1 },
+                                onOpenSettings = { tab = 3 },
+                                onLogout = logout,
+                            )
+                        }
                     }
-                )
-            } else if (showSettings) {
-                SettingsScreen(
-                    serverUrl = serverUrl,
-                    serverHistory = serverHistory,
-                    onBack = { showSettings = false },
-                    onSwitchServer = { nextServer ->
-                        prefs.serverUrl = nextServer
-                        prefs.clearToken()
-                        serverUrl = nextServer
-                        token = ""
-                        showSettings = false
-                    },
-                    onLogout = {
-                        prefs.clearToken()
-                        token = ""
-                        showSettings = false
+                    if (tab != 0) Surface(Modifier.fillMaxSize(), color = HeColors.Ink) {
+                        when (tab) {
+                            1 -> CreatorsScreen(serverUrl, token, onBack = { tab = 0 }, onLogout = logout)
+                            2 -> ToolsScreen(serverUrl, token, onBack = { tab = 0 }, onLogout = logout, onDetailChanged = { toolDetail = it })
+                            3 -> SettingsScreen(serverUrl, serverHistory, onBack = { tab = 0 }, onSwitchServer = { nextServer ->
+                                android.webkit.WebStorage.getInstance().deleteAllData()
+                                prefs.serverUrl = nextServer
+                                prefs.clearToken()
+                                serverUrl = nextServer
+                                token = ""
+                                tab = 0
+                            }, onLogout = logout)
+                        }
                     }
-                )
-            } else {
-                LibraryScreenV2(
-                    serverUrl = serverUrl,
-                    token = token,
-                    onOpenCreators = { showCreators = true },
-                    onOpenSettings = { showSettings = true },
-                    onLogout = {
-                        prefs.clearToken()
-                        token = ""
+                }
+                if (tab != 2 || !toolDetail) NavigationBar(containerColor = HeColors.Void) {
+                    val labels = listOf("媒体库", "创作者", "工具", "设置")
+                    val icons = listOf(Icons.Default.Home, Icons.Default.People, Icons.Default.Explore, Icons.Default.Settings)
+                    labels.forEachIndexed { index, label ->
+                        NavigationBarItem(selected = tab == index, onClick = { tab = index },
+                            icon = { Icon(icons[index], null) }, label = { Text(label) },
+                            colors = NavigationBarItemDefaults.colors(selectedIconColor = HeColors.Yellow,
+                                selectedTextColor = HeColors.Yellow, indicatorColor = HeColors.YellowSoft,
+                                unselectedIconColor = HeColors.OpWhiteSoft, unselectedTextColor = HeColors.OpWhiteSoft))
                     }
-                )
+                }
             }
         }
     }
