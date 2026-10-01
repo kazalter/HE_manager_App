@@ -28,6 +28,8 @@ class NativeFlowsTest {
         check(device.wait(Until.hasObject(By.text("发现与工具")),10000)) {"Tools did not open"}
     }
     private fun element(label: String): UiObject2 {
+        val visible=device.findObject(By.text(label)) ?: device.findObject(By.desc(label))
+        if(visible!=null && visible.visibleBounds.height()>0) return visible
         // API responses may create a dialog after Compose has already become idle.
         device.wait(Until.hasObject(By.text(label)),2500)
         for(direction in listOf(false,true)) repeat(14) {
@@ -96,10 +98,96 @@ class NativeFlowsTest {
         expect("/external/wnacg/downloads") {it.optJSONArray("item_ids")!!.length()>0&&it.optString("download_root_path")=="/qa/downloads"}
     }
     @Test fun pawchiveNativeImagesAndDownloadPreview() {
-        tap("Pawchive");tap("浏览帖子");tap("打开附件");tap("全屏查看")
-        assertNotNull(element("1 / 2"));tap("下一张");assertNotNull(element("2 / 2"));tap("关闭")
+        tap("Pawchive");tap("浏览帖子");tap("打开附件");tap("开始阅读")
+        assertNotNull(element("1 / 2"))
+        check(device.wait(Until.hasObject(By.desc("image1.png")),10000))
+        check(device.wait(Until.gone(By.desc("正在加载图片")),10000))
+        android.os.SystemClock.sleep(800) // Let the full-screen window finish its entrance transition.
+        val imageBounds=device.findObject(By.desc("image1.png")).visibleBounds
+        val x=device.displayWidth/2;val y=device.displayHeight/2
+        // Real drags must page in both directions and stop at the collection bounds.
+        device.swipe(device.displayWidth*4/5,y,device.displayWidth/5,y,35)
+        check(device.wait(Until.hasObject(By.text("2 / 2")),5000))
+        android.os.SystemClock.sleep(700)
+        device.swipe(device.displayWidth/5,y,device.displayWidth*4/5,y,35)
+        check(device.wait(Until.hasObject(By.text("1 / 2")),5000))
+        // Wait for the page snap to finish before starting a separate zoom gesture.
+        android.os.SystemClock.sleep(700)
+        val automation=instrumentation.uiAutomation
+        repeat(2) {
+            val down=android.os.SystemClock.uptimeMillis()
+            val first=android.view.MotionEvent.obtain(down,down,android.view.MotionEvent.ACTION_DOWN,x.toFloat(),y.toFloat(),0)
+            first.source=android.view.InputDevice.SOURCE_TOUCHSCREEN
+            automation.injectInputEvent(first,true);first.recycle()
+            android.os.SystemClock.sleep(40)
+            val last=android.view.MotionEvent.obtain(down,android.os.SystemClock.uptimeMillis(),android.view.MotionEvent.ACTION_UP,x.toFloat(),y.toFloat(),0)
+            last.source=android.view.InputDevice.SOURCE_TOUCHSCREEN
+            automation.injectInputEvent(last,true);last.recycle()
+            android.os.SystemClock.sleep(70)
+        }
+        assertNotNull(element("已放大 · 拖动查看细节"))
+        device.swipe(device.displayWidth*4/5,y,device.displayWidth/5,y,35)
+        assertNotNull(element("1 / 2"));tap("重置缩放")
+        device.findObject(By.desc("image1.png")).pinchOpen(0.3f)
+        assertNotNull(element("已放大 · 拖动查看细节"));tap("重置缩放")
+        // Overlay controls never resize the image; paging also works in immersive mode.
+        android.os.SystemClock.sleep(700)
+        device.click(x,y)
+        check(device.wait(Until.gone(By.text("1 / 2")),5000))
+        assertEquals(imageBounds,device.findObject(By.desc("image1.png")).visibleBounds)
+        device.swipe(device.displayWidth*4/5,y,device.displayWidth/5,y,35)
+        android.os.SystemClock.sleep(700)
+        device.click(x,y);assertNotNull(element("2 / 2"))
+        device.swipe(device.displayWidth*4/5,y,device.displayWidth/5,y,35)
+        assertNotNull(element("2 / 2"));tap("上一张");assertNotNull(element("1 / 2"))
+        tap("间隔 5 秒");tap("2 秒");tap("自动连播")
+        check(device.wait(Until.hasObject(By.text("2 / 2")),10000))
+        check(device.wait(Until.hasObject(By.text("自动连播")),7000)) // stops at last image
+        device.takeScreenshot(java.io.File(context.filesDir,"paw-reader.png"))
+        tap("关闭")
         tap("下载整篇帖子");tap("确认")
         expect("/external/pawchive/downloads/preview");expect("/external/pawchive/downloads")
+    }
+    @Test fun pawchiveReaderRetriesFailedImage() {
+        URL("http://127.0.0.1:18010/qa/paw-image-failure?enabled=true").readText()
+        try {
+            tap("Pawchive");tap("浏览帖子");tap("打开附件");tap("开始阅读")
+            assertNotNull(element("图片加载失败"))
+            URL("http://127.0.0.1:18010/qa/paw-image-failure?enabled=false").readText()
+            tap("重试加载")
+            check(device.wait(Until.gone(By.text("图片加载失败")),5000))
+            check(device.wait(Until.gone(By.desc("正在加载图片")),10000))
+            tap("间隔 5 秒");tap("2 秒");tap("自动连播")
+            check(device.wait(Until.hasObject(By.text("2 / 2")),10000))
+            tap("关闭")
+        } finally { URL("http://127.0.0.1:18010/qa/paw-image-failure?enabled=false").readText() }
+    }
+    @Test fun pawchiveReaderLandscapeAndLargeText() {
+        tap("Pawchive");tap("浏览帖子");tap("打开附件");tap("开始阅读")
+        val font=device.executeShellCommand("settings get system font_scale").trim()
+        val density=device.executeShellCommand("wm density").substringAfter("Override density: ", "").trim().toIntOrNull()
+        try {
+            device.executeShellCommand("wm density 460") // 375dp phone width
+            device.executeShellCommand("settings put system font_scale 2.0")
+            android.os.SystemClock.sleep(1500)
+            assertNotNull(element("下一张"));tap("下一张");assertNotNull(element("2 / 2"))
+            // Override the host's portrait preference only for this isolated QA app.
+            val activity=androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance()
+            instrumentation.runOnMainSync {
+                activity.getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED).first().requestedOrientation=android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            }
+            android.os.SystemClock.sleep(1500)
+            assertNotNull(element("关闭"));assertNotNull(element("上一张"));tap("上一张")
+            assertNotNull(element("1 / 2"))
+            device.takeScreenshot(java.io.File(context.filesDir,"paw-reader-landscape.png"))
+        } finally {
+            device.executeShellCommand(if(font=="null") "settings delete system font_scale" else "settings put system font_scale $font")
+            device.executeShellCommand(if(density==null) "wm density reset" else "wm density $density")
+            instrumentation.runOnMainSync {
+                androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance()
+                    .getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED).firstOrNull()?.requestedOrientation=android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+            }
+        }
     }
     @Test fun dedupConfirmationCancelDoesNotMutate() {
         val before=events().length()

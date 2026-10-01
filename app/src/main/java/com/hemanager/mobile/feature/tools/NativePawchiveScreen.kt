@@ -6,8 +6,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -24,16 +22,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
@@ -45,7 +41,6 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
-import coil.imageLoader
 import coil.request.ImageRequest
 import com.hemanager.mobile.ui.theme.GeistMono
 import com.hemanager.mobile.ui.theme.HeColors
@@ -73,7 +68,8 @@ internal fun NativePawchiveScreen(server: String, token: String, onBack: () -> U
     var cursor by remember { mutableStateOf("") }
     var more by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var opened by remember { mutableStateOf<JSONObject?>(null) }
+    var openedJson by rememberSaveable { mutableStateOf<String?>(null) }
+    val opened = remember(openedJson) { openedJson?.let(::JSONObject) }
     var jobs by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
     var tab by rememberSaveable { mutableStateOf("browse") }
     var expandedJob by rememberSaveable { mutableStateOf("") }
@@ -156,7 +152,7 @@ internal fun NativePawchiveScreen(server: String, token: String, onBack: () -> U
     }
 
     if (opened != null) {
-        NativePawchivePost(state, opened!!, type, { opened = null }, { p, keys -> download(listOf(selection(p, keys))) })
+        NativePawchivePost(state, opened, type, { openedJson = null }, { p, keys -> download(listOf(selection(p, keys))) })
         return
     }
 
@@ -329,78 +325,44 @@ internal fun NativePawchiveScreen(server: String, token: String, onBack: () -> U
                 }
 
                 items(creators, key = { it.text("service") + ":" + it.text("creator_id") }) { c ->
-                    val shape = RoundedCornerShape(14.dp)
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(shape)
-                            .background(HeColors.PanelGradient)
-                            .border(1.dp, HeColors.HairlineRim, shape)
-                            .padding(14.dp)
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Text(
-                                        text = c.text("creator_name", c.text("creator_id")),
-                                        fontWeight = FontWeight.Bold,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = HeColors.OpWhite,
-                                        fontFamily = NotoSansSC
-                                    )
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(4.dp))
-                                            .background(Color(0xFFAB47BC).copy(alpha = 0.12f))
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    ) {
-                                        Text(
-                                            text = "${c.text("service")} / ${c.text("creator_id")}",
-                                            fontFamily = GeistMono,
-                                            fontSize = 11.sp,
-                                            color = Color(0xFFAB47BC)
-                                        )
-                                    }
+                    val shape = RoundedCornerShape(16.dp)
+                    Column(Modifier.fillMaxWidth().clip(shape).background(HeColors.PanelGradient)
+                        .border(1.dp, HeColors.HairlineRim, shape).padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Surface(color = HeColors.CyanSoft, shape = RoundedCornerShape(14.dp)) {
+                                Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                                    Text(c.text("creator_name", c.text("creator_id")).take(1).uppercase(),
+                                        color = HeColors.Cyan, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                                 }
-
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Button(
-                                        onClick = {
-                                            state.run {
-                                                service = c.text("service")
-                                                creatorId = c.text("creator_id")
-                                                applied = ""
-                                                tag = ""
-                                                browse()
-                                            }
-                                        },
-                                        enabled = !state.busy,
-                                        shape = RoundedCornerShape(10.dp)
-                                    ) {
-                                        Text("浏览帖子")
-                                    }
-
-                                    val favorite = favorites.any { it.text("service") == c.text("service") && it.text("creator_id") == c.text("creator_id") }
-                                    OutlinedButton(
-                                        onClick = {
-                                            state.run {
-                                                state.api.request(
-                                                    "/external/pawchive/account/favorites/${encoded(c.text("service"))}/${encoded(c.text("creator_id"))}",
-                                                    if (favorite) "DELETE" else "PUT"
-                                                )
-                                                loadFavorites()
-                                            }
-                                        },
-                                        enabled = !state.busy && connected,
-                                        shape = RoundedCornerShape(10.dp)
-                                    ) {
-                                        Text(if (favorite) "取消喜欢" else "喜欢作者")
-                                    }
+                            }
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(c.text("creator_name", c.text("creator_id")), color = HeColors.OpWhite,
+                                    fontWeight = FontWeight.Bold, fontSize = 16.sp, maxLines = 2,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                Text("${c.text("service")} · ${c.text("creator_id")}", color = HeColors.OpWhiteSoft,
+                                    fontFamily = GeistMono, fontSize = 12.sp, maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                            }
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = {
+                                state.run {
+                                    service = c.text("service"); creatorId = c.text("creator_id")
+                                    applied = ""; tag = ""; browse()
                                 }
+                            }, enabled = !state.busy, shape = RoundedCornerShape(12.dp), modifier = Modifier.weight(1f)) {
+                                Text("浏览帖子")
+                            }
+                            val favorite = favorites.any { it.text("service") == c.text("service") && it.text("creator_id") == c.text("creator_id") }
+                            OutlinedButton(onClick = {
+                                state.run {
+                                    state.api.request("/external/pawchive/account/favorites/${encoded(c.text("service"))}/${encoded(c.text("creator_id"))}",
+                                        if (favorite) "DELETE" else "PUT")
+                                    loadFavorites()
+                                }
+                            }, enabled = !state.busy && connected, shape = RoundedCornerShape(12.dp), modifier = Modifier.weight(1f)) {
+                                Text(if (favorite) "取消喜欢" else "喜欢作者")
                             }
                         }
                     }
@@ -474,10 +436,10 @@ internal fun NativePawchiveScreen(server: String, token: String, onBack: () -> U
                             fontFamily = GeistMono
                         )
 
-                        Row(
+                        FlowRow(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -517,7 +479,7 @@ internal fun NativePawchiveScreen(server: String, token: String, onBack: () -> U
                                 Button(
                                     onClick = {
                                         state.run {
-                                            opened = state.api.get("/external/pawchive/posts/${encoded(post.text("service"))}/${encoded(post.text("creator_id"))}/${encoded(post.text("post_id"))}")
+                                            openedJson = state.api.get("/external/pawchive/posts/${encoded(post.text("service"))}/${encoded(post.text("creator_id"))}/${encoded(post.text("post_id"))}").toString()
                                         }
                                     },
                                     enabled = !state.busy,
@@ -630,259 +592,78 @@ private fun NativePawchivePost(
     var selected by remember { mutableStateOf<Set<String>>(emptySet()) }
     var viewer by rememberSaveable { mutableIntStateOf(-1) }
 
-    NativeScene(post.text("title", "帖子附件"), state, onBack, {}, subtitle = "// POST ATTACHMENTS") {
+    NativeScene("帖子附件", state, onBack, {}, subtitle = "// PAWCHIVE GALLERY") {
         item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(HeColors.Void.copy(alpha = 0.5f))
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "${post.text("creator_name")} · ${attachments.size} 个可播放附件",
-                    color = HeColors.OpWhite,
-                    fontFamily = GeistMono,
-                    fontSize = 13.sp
-                )
-            }
-        }
-
-        item {
-            Button(
-                onClick = { download(post, if (selected.isEmpty()) null else selected.toList()) },
-                enabled = !state.busy,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = HeColors.Yellow,
-                    contentColor = HeColors.OnYellow
-                ),
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(if (selected.isEmpty()) "下载整篇帖子" else "下载选中的 ${selected.size} 个附件", fontWeight = FontWeight.Bold)
-            }
-        }
-
-        items(attachments, key = { it.text("attachment_key") }) { a ->
-            val shape = RoundedCornerShape(14.dp)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(shape)
-                    .background(HeColors.PanelGradient)
-                    .border(1.dp, HeColors.HairlineRim, shape)
-                    .padding(14.dp)
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        text = a.text("filename"),
-                        fontWeight = FontWeight.Bold,
-                        color = HeColors.OpWhite,
-                        fontSize = 14.sp
-                    )
-
-                    val ref = a.text("preview_ref", a.text("stream_ref"))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(180.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(HeColors.Void)
-                            .border(1.dp, HeColors.HairlineMid, RoundedCornerShape(10.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(state.api.origin + "/external/pawchive/media/" + encoded(ref))
-                                .addHeader("Authorization", "Bearer ${state.api.token}")
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = a.text("filename"),
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier.fillMaxSize()
-                        )
+            NativeSection(post.text("title", "帖子")) {
+                Text("${post.text("creator_name")} · ${attachments.size} 个可播放附件",
+                    color = HeColors.OpWhiteSoft, fontSize = 13.sp)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { viewer = 0 }, enabled = attachments.isNotEmpty(),
+                        colors = ButtonDefaults.buttonColors(containerColor = HeColors.Yellow, contentColor = HeColors.OnYellow),
+                        shape = RoundedCornerShape(12.dp), modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Default.PlayArrow, null, Modifier.size(20.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("开始阅读", fontWeight = FontWeight.Bold)
                     }
+                    OutlinedButton(onClick = { download(post, if (selected.isEmpty()) null else selected.toList()) },
+                        enabled = !state.busy, shape = RoundedCornerShape(12.dp), modifier = Modifier.weight(1f)) {
+                        Text(if (selected.isEmpty()) "下载整篇帖子" else "下载所选 ${selected.size} 项")
+                    }
+                }
+                Text("轻点封面进入全屏阅读；勾选附件可批量下载。", color = HeColors.OpWhiteSoft, fontSize = 12.sp)
+            }
+        }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable(enabled = !state.busy) {
-                                    val yes = a.text("attachment_key") !in selected
-                                    selected = if (yes) selected + a.text("attachment_key") else selected - a.text("attachment_key")
+        items(attachments.chunked(2), key = { it.first().text("attachment_key") }) { row ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                row.forEach { a ->
+                    val position = attachments.indexOf(a)
+                    val shape = RoundedCornerShape(16.dp)
+                    val checked = a.text("attachment_key") in selected
+                    Column(Modifier.weight(1f).clip(shape).background(HeColors.Panel)
+                        .border(1.dp, if (checked) HeColors.Yellow else HeColors.HairlineMid, shape)) {
+                        Box(Modifier.fillMaxWidth().aspectRatio(0.78f).background(HeColors.Void)
+                            .clickable { viewer = position }, contentAlignment = Alignment.Center) {
+                            val ref = a.text("preview_ref", a.text("stream_ref"))
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(state.api.origin + "/external/pawchive/media/" + encoded(ref))
+                                    .addHeader("Authorization", "Bearer ${state.api.token}").crossfade(true).build(),
+                                contentDescription = if (a.text("media_type") == "video") "播放视频" else "全屏查看",
+                                contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                            Surface(color = HeColors.Ink.copy(alpha = 0.9f), shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.align(Alignment.TopStart).padding(8.dp)) {
+                                Text("${position + 1}", Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    color = HeColors.OpWhite, fontFamily = GeistMono, fontSize = 12.sp)
+                            }
+                            if (a.text("media_type") == "video") {
+                                Surface(color = HeColors.Ink.copy(alpha = 0.8f), shape = CircleShape) {
+                                    Icon(Icons.Default.PlayArrow, null, tint = HeColors.OpWhite, modifier = Modifier.padding(12.dp).size(24.dp))
                                 }
-                                .padding(vertical = 4.dp)
-                        ) {
-                            Checkbox(
-                                checked = a.text("attachment_key") in selected,
+                            }
+                        }
+                        Row(Modifier.fillMaxWidth().padding(start = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(a.text("filename"), Modifier.weight(1f), color = HeColors.OpWhite,
+                                fontSize = 12.sp, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                            Checkbox(checked = checked,
                                 onCheckedChange = { yes ->
                                     selected = if (yes) selected + a.text("attachment_key") else selected - a.text("attachment_key")
-                                },
-                                enabled = !state.busy,
-                                colors = CheckboxDefaults.colors(
-                                    checkedColor = HeColors.Yellow,
-                                    checkmarkColor = HeColors.OnYellow
-                                )
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text("选择下载", color = HeColors.OpWhite, fontSize = 13.sp)
-                        }
-
-                        Button(
-                            onClick = { viewer = attachments.indexOf(a) },
-                            enabled = !state.busy,
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Text(if (a.text("media_type") == "video") "播放视频" else "全屏查看")
+                                }, enabled = !state.busy,
+                                modifier = Modifier.semantics { contentDescription = "选择下载 ${a.text("filename")}" },
+                                colors = CheckboxDefaults.colors(checkedColor = HeColors.Yellow, checkmarkColor = HeColors.OnYellow))
                         }
                     }
                 }
+                if (row.size == 1) Spacer(Modifier.weight(1f))
             }
         }
-
         post.optJSONArray("attachments").objects().filter { it.text("availability") != "playable" }.forEach { a ->
-            item {
-                Text("${a.text("filename")} · 暂不支持预览", color = HeColors.OpWhiteSoft, fontSize = 12.sp)
-            }
+            item { Text("${a.text("filename")} · 暂不支持预览", color = HeColors.OpWhiteSoft, fontSize = 12.sp) }
         }
     }
 
     if (viewer >= 0 && attachments.isNotEmpty()) {
         NativeAttachmentViewer(state.api, attachments, viewer, { viewer = it }, { viewer = -1 })
-    }
-}
-
-@Composable
-internal fun NativeAttachmentViewer(
-    api: NativeApi,
-    attachments: List<JSONObject>,
-    index: Int,
-    onIndex: (Int) -> Unit,
-    onClose: () -> Unit
-) {
-    val context = LocalContext.current
-    var controls by remember { mutableStateOf(true) }
-    var autoplay by rememberSaveable { mutableStateOf(false) }
-    var interval by rememberSaveable { mutableStateOf("5") }
-    var scale by remember(index) { mutableFloatStateOf(1f) }
-    var x by remember(index) { mutableFloatStateOf(0f) }
-    var y by remember(index) { mutableFloatStateOf(0f) }
-    val a = attachments[index]
-    val path = "/external/pawchive/media/" + encoded(a.text("stream_ref"))
-    val owner = LocalLifecycleOwner.current
-
-    LaunchedEffect(index) {
-        attachments.drop(index + 1).take(6).filter { it.text("media_type") == "image" }.forEach { next ->
-            context.imageLoader.enqueue(
-                ImageRequest.Builder(context)
-                    .data(api.origin + "/external/pawchive/media/" + encoded(next.text("stream_ref")))
-                    .addHeader("Authorization", "Bearer ${api.token}")
-                    .build()
-            )
-        }
-    }
-
-    LaunchedEffect(index, autoplay, interval) {
-        if (autoplay && a.text("media_type") == "image") {
-            owner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-                delay((interval.toLongOrNull() ?: 5).coerceIn(2, 60) * 1000)
-                if (index + 1 < attachments.size) onIndex(index + 1) else autoplay = false
-            }
-        }
-    }
-
-    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
-        Surface(color = HeColors.Void, modifier = Modifier.fillMaxSize()) {
-            Column(Modifier.fillMaxSize().systemBarsPadding()) {
-                if (controls) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        TextButton(onClick = onClose) { Text("关闭", color = HeColors.OpWhite, fontWeight = FontWeight.Bold) }
-                        Text(
-                            text = "${index + 1} / ${attachments.size}",
-                            fontFamily = Oxanium,
-                            fontWeight = FontWeight.Bold,
-                            color = HeColors.Yellow,
-                            fontSize = 14.sp
-                        )
-                        TextButton(onClick = { scale = 1f; x = 0f; y = 0f }) { Text("重置缩放", color = HeColors.OpWhiteSoft) }
-                    }
-                }
-
-                Box(
-                    Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .pointerInput(index) { detectTapGestures(onTap = { controls = !controls }) }
-                ) {
-                    if (a.text("media_type") == "video") {
-                        NativeVideo(api, path, Modifier.fillMaxSize(), autoplay) {
-                            if (autoplay && index + 1 < attachments.size) onIndex(index + 1)
-                        }
-                    } else {
-                        AsyncImage(
-                            model = ImageRequest.Builder(context)
-                                .data(api.origin + path)
-                                .addHeader("Authorization", "Bearer ${api.token}")
-                                .build(),
-                            contentDescription = a.text("filename"),
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .pointerInput(index) {
-                                    detectTransformGestures { _, pan, zoom, _ ->
-                                        scale = (scale * zoom).coerceIn(1f, 5f)
-                                        x = if (scale == 1f) 0f else x + pan.x
-                                        y = if (scale == 1f) 0f else y + pan.y
-                                    }
-                                }
-                                .graphicsLayer(scaleX = scale, scaleY = scale, translationX = x, translationY = y)
-                        )
-                    }
-                }
-
-                if (controls) {
-                    Column(
-                        Modifier
-                            .fillMaxWidth()
-                            .background(HeColors.Ink.copy(alpha = 0.9f))
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Text(a.text("filename"), color = HeColors.OpWhite, fontSize = 13.sp, maxLines = 1)
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            OutlinedButton(onClick = { onIndex(index - 1) }, enabled = index > 0, shape = RoundedCornerShape(8.dp)) { Text("上一张") }
-                            OutlinedButton(onClick = { onIndex(index + 1) }, enabled = index + 1 < attachments.size, shape = RoundedCornerShape(8.dp)) { Text("下一张") }
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(
-                                checked = autoplay,
-                                onCheckedChange = { autoplay = it },
-                                colors = CheckboxDefaults.colors(checkedColor = HeColors.Yellow, checkmarkColor = HeColors.OnYellow)
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text("自动播放", color = HeColors.OpWhite, fontSize = 13.sp)
-                        }
-                        NativeField("图片间隔（2–60 秒）", interval, { interval = it })
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -908,6 +689,8 @@ internal fun NativeVideo(api: NativeApi, path: String, modifier: Modifier, autop
                 playWhenReady = autoplay
             }
     }
+
+    LaunchedEffect(player, autoplay) { player.playWhenReady = autoplay }
 
     DisposableEffect(player) {
         val listener = object : Player.Listener {

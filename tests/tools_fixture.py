@@ -3,9 +3,18 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 import json, threading, struct, zlib
 from urllib.parse import urlsplit,parse_qs
 
-def png():
+def png(width=32,height=32,landscape=False):
  def chunk(t,b):return struct.pack('!I',len(b))+t+b+struct.pack('!I',zlib.crc32(t+b)&0xffffffff)
- return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('!2I5B',32,32,8,2,0,0,0))+chunk(b'IDAT',zlib.compress((b'\0'+b'\xff\xc9\x45'*32)*32))+chunk(b'IEND',b'')
+ rows=[]
+ for y in range(height):
+  pixels=bytearray()
+  for x in range(width):
+   edge=x<12 or y<12 or x>=width-12 or y>=height-12
+   pixels.extend((244,216,0) if edge else ((35+x*85//width,80+y*85//height,145) if landscape else (40+x*55//width,130,100+y*70//height)))
+  rows.append(b'\0'+pixels)
+ return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('!2I5B',width,height,8,2,0,0,0))+chunk(b'IDAT',zlib.compress(b''.join(rows)))+chunk(b'IEND',b'')
+PORTRAIT=png(600,900);LANDSCAPE=png(900,600,True)
+PAW_IMAGE_FAIL=False
 PNG=png();EVENTS=[];TAGS=[dict(id=1,name='Alpha',namespace='general',count=2),dict(id=2,name='Beta',namespace='artist',count=3),dict(id=3,name='Unused',namespace='general',count=0)]
 MEDIA=[dict(id=i,title='QA media %02d'%i,media_type='manga',cover_path='qa.png',duration=10,progress=0,rating=0,favorite=False,view_status='unviewed',tags=[],is_missing=False,absolute_path='/qa/media/%d'%i,source_url='',source_site='local',file_size=100,width=32,height=32,page_count=2) for i in range(1,56)]
 USERS=[dict(id=1,username='QA',is_admin=True,is_active=True,created_at='2026-10-01'),dict(id=2,username='guest',is_admin=False,is_active=True,created_at='2026-10-01')]
@@ -30,7 +39,10 @@ class H(BaseHTTPRequestHandler):
  def urlpath(self):return urlsplit(self.path).path
  def qs(self):return parse_qs(urlsplit(self.path).query)
  def do_GET(self):
+  global PAW_IMAGE_FAIL
   p=self.urlpath();q=self.qs();offset=int(q.get('offset',[0])[0]);limit=int(q.get('limit',[24])[0])
+  if p=='/qa/paw-image-failure':
+   PAW_IMAGE_FAIL=q.get('enabled',['false'])[0]=='true';return self.send(dict(ok=True))
   if p=='/events':return self.send(EVENTS)
   if p=='/auth/me':return self.send(USERS[0])
   if p=='/auth/status':return self.send(dict(has_users=True))
@@ -45,8 +57,9 @@ class H(BaseHTTPRequestHandler):
   if p=='/external/favorites':
    items=[f for f in FAVORITES if f['source_type']==q.get('source_type',['wnacg'])[0]]
    return self.send(items[offset:offset+limit],total=len(items))
+  if p.endswith('/qa-retry') and PAW_IMAGE_FAIL:return self.send(dict(detail='QA image unavailable'),503)
   if p.startswith('/mobile/thumbnails/') or p.endswith('/cover') or '/pawchive/media/' in p:
-   self.send_response(200);self.send_header('Content-Type','image/png');self.end_headers();self.wfile.write(PNG);return
+   self.send_response(200);self.send_header('Content-Type','image/png');self.end_headers();self.wfile.write(LANDSCAPE if p.endswith('/qa2') else PORTRAIT if p.endswith(('/qa1','/qa-retry')) else PNG);return
   if p=='/stats/overview':return self.send(dict(total=55,total_size_bytes=1073741824,favorites=2,average_rating=4.5,total_duration_seconds=7200,by_type=dict(manga=55),view_status=dict(unviewed=55)))
   if p=='/stats/distribution':return self.send(dict(by_source=dict(local=55),rating_histogram={'5':2,'0':53},growth=[dict(month='2026-10',added=55,cumulative=55)]))
   if p=='/stats/activity':return self.send(dict(total=3,max=3,to_date='2026-10-01',buckets=[dict(date='2026-10-01',count=3)],by_type=dict(manga=[dict(date='2026-10-01',count=3)])))
@@ -61,7 +74,10 @@ class H(BaseHTTPRequestHandler):
   if p=='/external/pawchive/account/status':return self.send(dict(connected=PAW_CONNECTED))
   if p=='/external/pawchive/account/favorites':return self.send(dict(items=[CREATOR] if PAW_CONNECTED else []))
   if p=='/external/pawchive/posts':return self.send(dict(items=[PAW_POST],next_cursor=None,has_more=False,warnings=[]))
-  if p.startswith('/external/pawchive/posts/'):return self.send(PAW_POST)
+  if p.startswith('/external/pawchive/posts/'):
+   post=json.loads(json.dumps(PAW_POST))
+   if PAW_IMAGE_FAIL:post['attachments'][0]['stream_ref']='qa-retry'
+   return self.send(post)
   if p=='/external/pawchive/downloads':return self.send(dict(items=[j for k,j in JOBS.items() if k.startswith('paw')]))
   if p=='/ai/recommendations/status':return self.send(dict(deepseek_configured=False,key_saved=False,env_key_present=False,model='qa-model',base_url='https://qa.invalid'))
   if p in ['/recommend/manga-profiles/stats','/recommend/manga-metadata/stats']:return self.send(dict(total_manga=55,profiled=2,missing=53,stale=0))
