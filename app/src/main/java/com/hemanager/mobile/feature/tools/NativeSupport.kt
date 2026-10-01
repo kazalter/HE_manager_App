@@ -3,17 +3,35 @@ package com.hemanager.mobile.feature.tools
 import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.hemanager.mobile.ui.op.IconBtn4
+import com.hemanager.mobile.ui.theme.GeistMono
+import com.hemanager.mobile.ui.theme.HeColors
+import com.hemanager.mobile.ui.theme.NotoSansSC
+import com.hemanager.mobile.ui.theme.Oxanium
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
@@ -113,42 +131,322 @@ internal class NativeActions(val api: NativeApi, private val scope: CoroutineSco
     val scope=rememberCoroutineScope(); val logout by rememberUpdatedState(onLogout)
     return remember(server,token) { NativeActions(NativeApi(server,token),scope) { logout() } }
 }
-@Composable internal fun NativeScene(title: String, state: NativeActions, onBack: () -> Unit, refresh: () -> Unit, content: LazyListScope.() -> Unit) {
-    BackHandler { if(!state.backLocked) onBack() }
-    ToolPage(title, { if(!state.backLocked) onBack() }, actions={ IconButton(onClick=refresh,enabled=!state.busy) { Icon(Icons.Default.Refresh,"刷新") } }) { padding ->
-        LazyColumn(Modifier.fillMaxSize().padding(padding).imePadding(), contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
-            if(state.busy) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
-            if(state.error.isNotBlank()) item { ToolError(state.error,refresh) }
-            if(state.message.isNotBlank()) item { Text(state.message,color=com.hemanager.mobile.ui.theme.HeColors.Cyan) }
+
+@Composable internal fun NativeScene(
+    title: String,
+    state: NativeActions,
+    onBack: (() -> Unit)? = null,
+    refresh: () -> Unit,
+    subtitle: String? = null,
+    content: LazyListScope.() -> Unit
+) {
+    BackHandler { if(onBack != null && !state.backLocked) onBack() }
+    ToolPage(
+        title = title,
+        onBack = if (onBack != null) { { if(!state.backLocked) onBack() } } else null,
+        subtitle = subtitle,
+        actions = {
+            if (state.busy) {
+                Box(modifier = Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 1.5.dp, color = HeColors.Yellow)
+                }
+            } else {
+                IconBtn4(icon = Icons.Default.Refresh, contentDescription = "刷新", onClick = refresh)
+            }
+        }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding).imePadding(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            if (state.busy) item {
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth().height(2.5.dp),
+                    color = HeColors.Yellow,
+                    trackColor = HeColors.OpSurface
+                )
+            }
+            if (state.error.isNotBlank()) item { ToolError(state.error, refresh) }
+            if (state.message.isNotBlank()) item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(HeColors.Cyan.copy(alpha = 0.12f))
+                        .border(1.dp, HeColors.Cyan.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(Modifier.size(6.dp).clip(CircleShape).background(HeColors.Cyan))
+                        Text(
+                            text = state.message,
+                            color = HeColors.Cyan,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
             content()
         }
     }
-    state.confirmation?.let { (message,action) -> AlertDialog(onDismissRequest={ state.confirmation=null },title={Text("确认操作")},text={Text(message)},confirmButton={TextButton(onClick={state.confirmation=null;state.run(lockBack=true,block=action)}) { Text("确认") }},dismissButton={TextButton(onClick={state.confirmation=null}) { Text("取消") }}) }
-}
-@Composable internal fun NativeSection(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Card(colors=CardDefaults.cardColors(containerColor=com.hemanager.mobile.ui.theme.HeColors.Panel),modifier=Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) { Text(title,style=MaterialTheme.typography.titleMedium); content() }
+    state.confirmation?.let { (message, action) ->
+        val dialogShape = RoundedCornerShape(20.dp)
+        AlertDialog(
+            onDismissRequest = { state.confirmation = null },
+            shape = dialogShape,
+            containerColor = HeColors.PanelLight,
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box(Modifier.size(6.dp).clip(CircleShape).background(HeColors.Yellow))
+                    Text("确认操作", fontFamily = NotoSansSC, fontWeight = FontWeight.Bold, color = HeColors.OpWhite)
+                }
+            },
+            text = { Text(message, color = HeColors.OpWhiteSoft, lineHeight = 20.sp) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        state.confirmation = null
+                        state.run(lockBack = true, block = action)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = HeColors.Yellow,
+                        contentColor = HeColors.OnYellow
+                    ),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("确认", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { state.confirmation = null }) {
+                    Text("取消", color = HeColors.OpWhiteSoft)
+                }
+            },
+            modifier = Modifier.border(1.dp, HeColors.HairlineRim, dialogShape)
+        )
     }
 }
-@Composable internal fun NativeField(label: String, value: String, change: (String)->Unit, secret: Boolean=false, enabled: Boolean=true, multiline: Boolean=false) {
-    OutlinedTextField(value,change,label={Text(label)},modifier=Modifier.fillMaxWidth(),enabled=enabled,singleLine=!multiline,maxLines=if(multiline) 5 else 1,visualTransformation=if(secret) PasswordVisualTransformation() else VisualTransformation.None)
+
+@Composable internal fun NativeSection(
+    title: String,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val sectionShape = RoundedCornerShape(16.dp)
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(sectionShape)
+            .background(HeColors.PanelGradient)
+            .border(1.dp, HeColors.HairlineRim, sectionShape)
+            .padding(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    Modifier
+                        .width(3.5.dp)
+                        .height(14.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(HeColors.Yellow)
+                )
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = HeColors.OpWhite,
+                    fontFamily = NotoSansSC
+                )
+            }
+            content()
+        }
+    }
 }
+
+@Composable internal fun NativeField(
+    label: String,
+    value: String,
+    change: (String) -> Unit,
+    secret: Boolean = false,
+    enabled: Boolean = true,
+    multiline: Boolean = false
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = change,
+        label = { Text(label) },
+        modifier = Modifier.fillMaxWidth(),
+        enabled = enabled,
+        singleLine = !multiline,
+        maxLines = if (multiline) 5 else 1,
+        shape = RoundedCornerShape(12.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = HeColors.Yellow,
+            unfocusedBorderColor = HeColors.HairlineHi,
+            focusedLabelColor = HeColors.Yellow,
+            unfocusedLabelColor = HeColors.OpWhiteSoft,
+            cursorColor = HeColors.Yellow,
+            focusedTextColor = HeColors.OpWhite,
+            unfocusedTextColor = HeColors.OpWhite,
+            focusedContainerColor = HeColors.Void.copy(alpha = 0.5f),
+            unfocusedContainerColor = HeColors.Void.copy(alpha = 0.35f),
+            disabledContainerColor = HeColors.Void.copy(alpha = 0.15f),
+            disabledBorderColor = HeColors.Hairline,
+            disabledTextColor = HeColors.OpWhiteFaint,
+            disabledLabelColor = HeColors.OpWhiteFaint
+        ),
+        visualTransformation = if (secret) PasswordVisualTransformation() else VisualTransformation.None
+    )
+}
+
 @OptIn(ExperimentalLayoutApi::class)
-@Composable internal fun NativeChoice(label: String, value: String, options: List<Pair<String,String>>, enabled: Boolean=true, change: (String)->Unit) {
-    Column(verticalArrangement=Arrangement.spacedBy(4.dp)) {
-        Text(label,style=MaterialTheme.typography.labelLarge)
-        FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp)) { options.forEach { (key,title) -> FilterChip(selected=value==key,onClick={change(key)},enabled=enabled,label={Text(title)}) } }
+@Composable internal fun NativeChoice(
+    label: String,
+    value: String,
+    options: List<Pair<String, String>>,
+    enabled: Boolean = true,
+    change: (String) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = HeColors.OpWhiteSoft,
+            fontFamily = NotoSansSC,
+            fontWeight = FontWeight.SemiBold
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            options.forEach { (key, title) ->
+                val selected = value == key
+                val chipShape = RoundedCornerShape(10.dp)
+                val bgMod = if (selected) {
+                    Modifier.background(HeColors.Yellow).border(1.dp, HeColors.Yellow, chipShape)
+                } else {
+                    Modifier.background(HeColors.PanelLight.copy(alpha = 0.8f)).border(1.dp, HeColors.HairlineMid, chipShape)
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(chipShape)
+                        .then(bgMod)
+                        .clickable(enabled = enabled) { change(key) }
+                        .padding(horizontal = 12.dp, vertical = 7.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (selected) {
+                            Box(Modifier.size(5.dp).clip(CircleShape).background(HeColors.OnYellow))
+                        }
+                        Text(
+                            text = title,
+                            color = if (selected) HeColors.OnYellow else HeColors.OpWhiteSoft,
+                            fontWeight = if (selected) FontWeight.Black else FontWeight.Medium,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+            }
+        }
     }
 }
+
 @Composable internal fun JobStatus(job: JSONObject?) {
-    if(job==null||job.text("status").isBlank()) return
-    NativeSection("任务 · ${statusName(job.text("status"))}") {
-        Text(job.text("message").ifBlank { job.text("step") })
-        val done=job.optInt("completed",job.optInt("completed_posts")); val total=job.optInt("total",job.optInt("total_posts"))
-        if(total>0) { Text("$done / $total · 失败 ${job.optInt("failed",job.optInt("failed_posts"))}"); LinearProgressIndicator(progress={ (done.toFloat()/total).coerceIn(0f,1f) },modifier=Modifier.fillMaxWidth()) }
-        listOf("current_title","current_book_title","current_file","error").forEach { if(job.text(it).isNotBlank()) Text(job.text(it)) }
-        val errors=job.optJSONArray("errors")
-        if(errors!=null) for(i in 0 until minOf(errors.length(),5)) Text(errors.opt(i).toString())
+    if (job == null || job.text("status").isBlank()) return
+    val status = job.text("status")
+    val isActive = activeJob(job)
+    val isError = status in setOf("failed", "error", "cancelled", "canceled")
+    val accent = when {
+        isActive -> HeColors.Yellow
+        isError -> HeColors.OpDanger
+        else -> HeColors.Online
+    }
+
+    NativeSection("任务状态 · ${statusName(status)}") {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(accent)
+            )
+            Text(
+                text = job.text("message").ifBlank { job.text("step") },
+                style = MaterialTheme.typography.bodyMedium,
+                color = HeColors.OpWhite,
+                fontFamily = GeistMono
+            )
+        }
+
+        val done = job.optInt("completed", job.optInt("completed_posts"))
+        val total = job.optInt("total", job.optInt("total_posts"))
+        if (total > 0) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "$done / $total · 失败 ${job.optInt("failed", job.optInt("failed_posts"))}",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = GeistMono,
+                        color = HeColors.OpWhiteSoft
+                    )
+                    Text(
+                        text = "${(done * 100 / total).coerceIn(0, 100)}%",
+                        fontFamily = Oxanium,
+                        fontWeight = FontWeight.Bold,
+                        color = accent
+                    )
+                }
+                LinearProgressIndicator(
+                    progress = { (done.toFloat() / total).coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                    color = accent,
+                    trackColor = HeColors.OpSurface
+                )
+            }
+        }
+
+        listOf("current_title", "current_book_title", "current_file", "error").forEach {
+            if (job.text(it).isNotBlank()) {
+                Text(
+                    text = job.text(it),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = GeistMono,
+                    color = if (it == "error") HeColors.OpDanger else HeColors.OpWhiteSoft
+                )
+            }
+        }
+
+        val errors = job.optJSONArray("errors")
+        if (errors != null) {
+            for (i in 0 until minOf(errors.length(), 5)) {
+                Text(
+                    text = errors.opt(i).toString(),
+                    color = HeColors.OpDanger,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = GeistMono
+                )
+            }
+        }
     }
 }
 @Composable internal fun NativePoll(key: Any?, enabled: Boolean, refresh: suspend () -> Unit) {
