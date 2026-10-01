@@ -421,7 +421,6 @@ class MainActivity : ComponentActivity(), HostUiController {
             var previousTab by remember { mutableStateOf(0) }
             val libraryLifecycle = rememberRetainedScreenLifecycle(tab == 0)
             val logout = {
-                android.webkit.WebStorage.getInstance().deleteAllData()
                 prefs.clearToken()
                 token = ""
                 tab = 0
@@ -454,7 +453,6 @@ class MainActivity : ComponentActivity(), HostUiController {
                             1 -> CreatorsScreen(serverUrl, token, onBack = { tab = 0 }, onLogout = logout)
                             2 -> ToolsScreen(serverUrl, token, onBack = { tab = 0 }, onLogout = logout, onDetailChanged = { toolDetail = it })
                             3 -> SettingsScreen(serverUrl, serverHistory, onBack = { tab = 0 }, onSwitchServer = { nextServer ->
-                                android.webkit.WebStorage.getInstance().deleteAllData()
                                 prefs.serverUrl = nextServer
                                 prefs.clearToken()
                                 serverUrl = nextServer

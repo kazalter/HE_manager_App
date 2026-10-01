@@ -4,6 +4,8 @@ plugins {
     id "org.jetbrains.kotlin.plugin.compose"
 }
 
+configurations { gdxNatives }
+
 android {
     namespace "com.hemanager.mobile"
     compileSdk 35
@@ -14,6 +16,7 @@ android {
         targetSdk 35
         versionCode 1
         versionName "0.1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -38,6 +41,7 @@ android {
     buildFeatures {
         compose true
     }
+    sourceSets.main.jniLibs.srcDir "$buildDir/generated/gdx-jni"
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -50,6 +54,19 @@ android {
 }
 
 dependencies {
+    androidTestImplementation "androidx.test:runner:1.6.2"
+    androidTestImplementation "androidx.test.ext:junit:1.2.1"
+    androidTestImplementation "androidx.test.uiautomator:uiautomator:2.3.0"
+    implementation "com.squareup.okhttp3:okhttp:4.12.0"
+    testImplementation "junit:junit:4.13.2"
+    testImplementation "org.json:json:20240303"
+    testImplementation "com.squareup.okhttp3:mockwebserver:4.12.0"
+    implementation "com.esotericsoftware.spine:spine-libgdx:4.1.0"
+    implementation "com.badlogicgames.gdx:gdx:1.11.0"
+    implementation "com.badlogicgames.gdx:gdx-backend-android:1.11.0"
+    ["armeabi-v7a", "arm64-v8a", "x86", "x86_64"].each { abi ->
+        gdxNatives "com.badlogicgames.gdx:gdx-platform:1.11.0:natives-$abi"
+    }
     def composeBom = platform("androidx.compose:compose-bom:2024.10.00")
     implementation composeBom
     androidTestImplementation composeBom
@@ -79,3 +96,15 @@ dependencies {
     implementation "com.davemorrissey.labs:subsampling-scale-image-view:3.10.0"
     implementation "androidx.viewpager2:viewpager2:1.1.0"
 }
+
+tasks.register("extractGdxNatives") {
+    inputs.files(configurations.gdxNatives)
+    outputs.dir("$buildDir/generated/gdx-jni")
+    doLast {
+        configurations.gdxNatives.files.each { jar ->
+            def abi = ["armeabi-v7a", "arm64-v8a", "x86_64", "x86"].find { jar.name.endsWith("natives-${it}.jar") }
+            copy { from zipTree(jar); into "$buildDir/generated/gdx-jni/$abi"; include "*.so" }
+        }
+    }
+}
+tasks.named("preBuild").configure { dependsOn("extractGdxNatives") }
