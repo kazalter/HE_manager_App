@@ -26,6 +26,28 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
+// Images can keep onPageFinished pending. Size the shell as soon as its document
+// exists, and own the callback so navigation and disposal can cancel it.
+private class ToolWebView(context: android.content.Context) : WebView(context) {
+    private val viewportUpdate = object : Runnable {
+        override fun run() {
+            updateViewport()
+            postDelayed(this, 200)
+        }
+    }
+    init { addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> updateViewport() } }
+    fun updateViewport() {
+        if (height <= 0) return
+        val cssHeight = (height / resources.displayMetrics.density).toInt().coerceAtLeast(1)
+        evaluateJavascript("if(document.documentElement)document.documentElement.style.setProperty('--he-app-height', '${cssHeight}px', 'important');", null)
+    }
+    fun startViewportUpdates() {
+        removeCallbacks(viewportUpdate)
+        post(viewportUpdate)
+    }
+    fun stopViewportUpdates() { removeCallbacks(viewportUpdate) }
+}
+
 @Composable
 internal fun WebToolScreen(origin: String, token: String, route: String, title: String, onBack: () -> Unit, onEditEndpoint: () -> Unit) {
     val context = LocalContext.current
@@ -134,7 +156,7 @@ internal fun WebToolScreen(origin: String, token: String, route: String, title: 
             }
             if (verified) key(origin, token, route, revision) {
                 AndroidView(modifier = Modifier.weight(1f).fillMaxWidth(), factory = {
-                    WebView(it).apply {
+                    ToolWebView(it).apply {
                         webView = this
                         if (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0) WebView.setWebContentsDebuggingEnabled(true)
                         setBackgroundColor(android.graphics.Color.rgb(14, 16, 22))
@@ -146,14 +168,9 @@ internal fun WebToolScreen(origin: String, token: String, route: String, title: 
                         settings.javaScriptCanOpenWindowsAutomatically = false
                         settings.mediaPlaybackRequiresUserGesture = true
                         settings.setSupportMultipleWindows(false)
-                        fun updateViewport(view: WebView) {
-                            if (view.height <= 0) return
-                            val cssHeight = (view.height / view.resources.displayMetrics.density).toInt().coerceAtLeast(1)
-                            view.evaluateJavascript("document.documentElement.style.setProperty('--he-app-height', '${cssHeight}px', 'important');", null)
-                        }
-                        addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ -> updateViewport(view as WebView) }
                         var bootstrap = true
                         webViewClient = object : WebViewClient() {
+                            override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) { startViewportUpdates() }
                             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                                 if (WebEndpoint.sameOrigin(origin, request.url.toString())) return false
                                 if (!request.isForMainFrame) return true
@@ -164,28 +181,18 @@ internal fun WebToolScreen(origin: String, token: String, route: String, title: 
                                 return true
                             }
                             override fun onPageFinished(view: WebView, url: String) {
+                                stopViewportUpdates()
                                 if (bootstrap && WebEndpoint.sameOrigin(origin, url)) {
                                     bootstrap = false
                                     val script = "localStorage.setItem('he_manager_token', ${JSONObject.quote(token)});location.replace(${JSONObject.quote("$origin/#$route")});"
                                     view.evaluateJavascript(script, null)
                                 } else if (WebEndpoint.sameOrigin(origin, url)) {
-                                    // Some Android WebViews report 100dvh as zero even while
-                                    // innerHeight is correct. Keep HE's app shell sized to this
-                                    // embedded viewport, including keyboard/rotation changes.
-                                    view.evaluateJavascript("""
-                                        (() => {
-                                          if (window.__heAndroidViewport) return;
-                                          window.__heAndroidViewport = true;
-                                          const resize = () => document.documentElement.style.setProperty('--he-app-height', Math.max(1, window.innerHeight) + 'px', 'important');
-                                          resize(); window.addEventListener('resize', resize);
-                                          window.visualViewport?.addEventListener('resize', resize);
-                                        })();
-                                    """.trimIndent(), null)
+                                    updateViewport()
                                 }
                                 canGoBack = view.canGoBack()
                             }
                             override fun onPageCommitVisible(view: WebView, url: String) {
-                                if (WebEndpoint.sameOrigin(origin, url)) updateViewport(view)
+                                if (WebEndpoint.sameOrigin(origin, url)) updateViewport()
                             }
                             override fun onReceivedError(view: WebView, request: WebResourceRequest, failure: WebResourceError) {
                                 if (request.isForMainFrame) error = "页面加载失败：${failure.description}"
@@ -196,7 +203,10 @@ internal fun WebToolScreen(origin: String, token: String, route: String, title: 
                             override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) { canGoBack = view.canGoBack() }
                         }
                         webChromeClient = object : WebChromeClient() {
-                            override fun onProgressChanged(view: WebView, newProgress: Int) { progress = newProgress }
+                            override fun onProgressChanged(view: WebView, newProgress: Int) {
+                                progress = newProgress
+                                if (newProgress >= 40) updateViewport()
+                            }
                             override fun onShowFileChooser(view: WebView, callback: ValueCallback<Array<Uri>>, params: FileChooserParams): Boolean {
                                 fileCallback?.onReceiveValue(null); fileCallback = callback
                                 return try { filePicker.launch(params.createIntent()); true }
@@ -243,6 +253,7 @@ internal fun WebToolScreen(origin: String, token: String, route: String, title: 
                 }, onRelease = { released ->
                     if (webView === released) webView = null
                     WebStorage.getInstance().deleteOrigin(origin)
+                    released.stopViewportUpdates()
                     released.stopLoading(); released.webChromeClient = null; released.destroy()
                 })
             }

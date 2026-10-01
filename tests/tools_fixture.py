@@ -1,5 +1,6 @@
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 import json,threading
+from time import sleep
 TAGS=[dict(id=1,name='Alpha',namespace='general',count=2),dict(id=2,name='Beta',namespace='artist',count=3),dict(id=3,name='Unused',namespace='general',count=0)]
 EVENTS=[]
 class H(BaseHTTPRequestHandler):
@@ -16,10 +17,13 @@ class H(BaseHTTPRequestHandler):
   elif p=='/stats/distribution':self.send(dict(by_source=dict(local=6,x=4),rating_histogram={'5':5,'4':3}))
   elif p=='/stats/activity':self.send(dict(total=6,max=3,buckets=[dict(date='2026-10-01',count=3)]))
   elif p=='/events':self.send(dict(tags=TAGS,events=EVENTS))
+  elif p=='/slow-image':
+   sleep(8)
+   self.send_response(204);self.end_headers()
   elif p=='/download':
    data=b'he-manager-test-download';self.send_response(200);self.send_header('Content-Type','application/octet-stream');self.send_header('Content-Disposition','attachment; filename="he-qa.txt"');self.end_headers();self.wfile.write(data)
   else:
-   data=b'''<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{color:white;background:#141720;font:20px sans-serif}button,input,a{display:block;margin:24px;padding:16px} .he-app-shell{height:var(--he-app-height,100dvh)}</style></head><body><main class="he-app-shell"><h1 id="status"></h1><input type="file" id="file"><button id="confirm" onclick="document.querySelector('#result').textContent=confirm('QA confirmation')?'CONFIRMED':'CANCELLED'">Confirm test</button><button id="prompt" onclick="document.querySelector('#result').textContent=prompt('QA prompt','value')">Prompt test</button><a href="/download" download="he-qa.txt">Download test</a><p id="result"></p></main><script>document.querySelector('#status').textContent=localStorage.getItem('he_manager_token')==='qa-token'?'SESSION OK':'SESSION MISSING';</script></body></html>'''
+   data=b'''<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{color:white;background:#141720;font:20px sans-serif}button,input,a{display:block;margin:24px;padding:16px} :root{--he-app-height:100dvh}.he-app-shell{height:var(--he-app-height);overflow:hidden}</style></head><body><main class="he-app-shell"><h1 id="status"></h1><input type="file" id="file"><button id="confirm" onclick="document.querySelector('#result').textContent=confirm('QA confirmation')?'CONFIRMED':'CANCELLED'">Confirm test</button><button id="prompt" onclick="document.querySelector('#result').textContent=prompt('QA prompt','value')">Prompt test</button><a href="/download" download="he-qa.txt">Download test</a><p id="result"></p><img src="/slow-image" width="1" height="1"></main><script>document.querySelector('#status').textContent=localStorage.getItem('he_manager_token')==='qa-token'?'SESSION OK':'SESSION MISSING';</script></body></html>'''
    self.send_response(200);self.send_header('Content-Type','text/html');self.end_headers();self.wfile.write(data)
  def body(self):return json.loads(self.rfile.read(int(self.headers.get('Content-Length',0))))
  def do_PATCH(self):

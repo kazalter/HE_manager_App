@@ -40,6 +40,10 @@ python3 tests/tools_fixture.py
 
 已在 PGP110 真机验证统计概览、账号权限、标签编辑/命名空间切换、清理取消与确认、合并后的引用计数、Web 自动登录/高度、JS 确认、文件选择/读取与下载保存。正式服务验证只读取数据与打开页面。
 
+慢加载 fixture 将图片响应延迟 8 秒，并使用正式页面的 CSS 高度变量和溢出裁剪。真机在文档仍为 `interactive` 时已显示内容、保留登录状态并取得 840px 的容器高度；无需等待所有图片完成。
+
+Linux 重启恢复后，正式 release 覆盖安装并复测：统计读取 2534 个媒体、102.9 GB，外部收藏与 Pawchive 页面正常显示并沿用账号。第二次冷启动 `am start -W` 为 661ms；正式包没有 WebView 调试 socket。
+
 375dp 宽度、2 倍系统字体下验证统计单列布局及可滚动的标签编辑对话框；测试后恢复设备原有密度与字号。原有 manifest 的竖屏约束保留。
 
 Debug 和 release 均可构建。全库 lint 有 23 个既有错误，主要是受保护的漫画页 API 23 兼容调用、Media3 未标注的实验 API 使用；本轮新增模块无 lint error。release 使用仓库现有 `-x lintVitalRelease` 验证方式。
