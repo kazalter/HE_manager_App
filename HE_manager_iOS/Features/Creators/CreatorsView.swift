@@ -1,6 +1,7 @@
 import SwiftUI
 
 @Observable
+@MainActor
 public final class CreatorsViewModel {
     public var creators: [Creator] = []
     public var selectedKind: String = "all" // all, artist, x
@@ -8,6 +9,7 @@ public final class CreatorsViewModel {
     public var isLoading: Bool = false
     public var errorMessage: String? = nil
 
+    private var loadGeneration = 0
     private let preferences: Preferences
     private var client: ApiClient {
         ApiClient(baseUrl: preferences.serverUrl, token: preferences.token)
@@ -34,13 +36,19 @@ public final class CreatorsViewModel {
     }
 
     public func loadCreators() async {
+        loadGeneration += 1
+        let generation = loadGeneration
+        let kind = selectedKind
+        let api = client
         isLoading = true
         errorMessage = nil
         do {
-            let list = try await client.getCreators(typeFilter: selectedKind)
+            let list = try await api.getCreators(typeFilter: kind)
+            guard generation == loadGeneration else { return }
             self.creators = list
             self.isLoading = false
         } catch {
+            guard generation == loadGeneration else { return }
             self.isLoading = false
             self.errorMessage = error.localizedDescription
         }
@@ -95,12 +103,24 @@ public struct CreatorsView: View {
                 .padding(12)
                 .background(OPTheme.ink)
 
+                if let error = viewModel.errorMessage {
+                    VStack(spacing: 8) {
+                        Text(error).foregroundColor(OPTheme.danger)
+                        Button("重试连接") { Task { await viewModel.loadCreators() } }
+                            .foregroundColor(OPTheme.yellow)
+                    }.padding(12)
+                }
+
                 if viewModel.isLoading && viewModel.creators.isEmpty {
                     Spacer()
                     ProgressView().tint(OPTheme.yellow)
                     Spacer()
                 } else {
                     ScrollView {
+                        if viewModel.filteredCreators.isEmpty && viewModel.errorMessage == nil && !viewModel.isLoading {
+                            Text("没有符合当前筛选的创作者")
+                                .foregroundColor(OPTheme.opWhiteMuted).padding(24)
+                        }
                         LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
                             ForEach(viewModel.filteredCreators) { creator in
                                 NavigationLink {
@@ -191,6 +211,7 @@ public struct CreatorDetailView: View {
     public let onSelectMedia: (MediaItem) -> Void
 
     @State private var detail: CreatorDetail? = nil
+    @State private var mediaActions = LibraryViewModel()
     @State private var isLoading: Bool = true
     @State private var errorMessage: String? = nil
     @Bindable var preferences = Preferences.shared
@@ -202,7 +223,11 @@ public struct CreatorDetailView: View {
             if isLoading {
                 ProgressView().tint(OPTheme.yellow)
             } else if let error = errorMessage {
-                Text(error).foregroundColor(OPTheme.danger)
+                VStack(spacing: 12) {
+                    Text(error).foregroundColor(OPTheme.danger)
+                    Button("重试连接") { Task { await loadDetail() } }
+                        .foregroundColor(OPTheme.yellow)
+                }.padding()
             } else if let detail = detail {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
@@ -250,14 +275,18 @@ public struct CreatorDetailView: View {
                             .foregroundColor(OPTheme.yellowDim)
                             .padding(.horizontal, 16)
 
+                        if let error = mediaActions.errorMessage {
+                            Text(error).foregroundColor(OPTheme.danger).padding(.horizontal, 12)
+                        }
+
                         // Media Grid
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 3), spacing: 6) {
-                            ForEach(detail.media) { item in
+                            ForEach(mediaActions.allItems) { item in
                                 MediaCardView(
                                     item: item,
                                     serverUrl: preferences.serverUrl,
                                     token: preferences.token,
-                                    onToggleFavorite: {},
+                                    onToggleFavorite: { mediaActions.toggleFavorite(for: item) },
                                     onSelect: {
                                         onSelectMedia(item)
                                     }
@@ -295,6 +324,7 @@ public struct CreatorDetailView: View {
             let client = ApiClient(baseUrl: preferences.serverUrl, token: preferences.token)
             let res = try await client.getCreatorDetail(key: creatorKey)
             self.detail = res
+            self.mediaActions.allItems = res.media
             self.isLoading = false
         } catch {
             self.isLoading = false

@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 
 @Observable
+@MainActor
 public final class LibraryViewModel {
     public var allItems: [MediaItem] = []
     public var allTags: [TagItem] = []
@@ -9,6 +10,11 @@ public final class LibraryViewModel {
     public var searchText: String = ""
     public var isLoading: Bool = false
     public var errorMessage: String? = nil
+
+    private var loadGeneration = 0
+    private var favoriteTasks: [Int: Task<Void, Never>] = [:]
+    private var favoriteGeneration: [Int: Int] = [:]
+    private var confirmedFavorites: [Int: Bool] = [:]
 
     private let preferences: Preferences
     private var client: ApiClient {
@@ -91,18 +97,29 @@ public final class LibraryViewModel {
 
     public func loadData() async {
         guard preferences.isLoggedIn else { return }
+        loadGeneration += 1
+        let generation = loadGeneration
+        let api = client
         isLoading = true
         errorMessage = nil
 
         do {
-            async let mediaFetch = client.getMedia(sort: "date")
-            async let tagsFetch = client.getTags()
+            async let mediaFetch = api.getMedia(sort: "date")
+            async let tagsFetch = api.getTags()
 
             let (media, tags) = try await (mediaFetch, tagsFetch)
-            self.allItems = media
+            guard generation == loadGeneration else { return }
+            // A refresh must not erase a favorite action still waiting for its response.
+            let pending = Dictionary(uniqueKeysWithValues: allItems.map { ($0.id, $0.favorite) })
+            self.allItems = media.map { item in
+                var item = item
+                if favoriteTasks[item.id] != nil, let favorite = pending[item.id] { item.favorite = favorite }
+                return item
+            }
             self.allTags = tags
             self.isLoading = false
         } catch {
+            guard generation == loadGeneration else { return }
             self.isLoading = false
             self.errorMessage = error.localizedDescription
         }
@@ -110,25 +127,37 @@ public final class LibraryViewModel {
 
     public func toggleFavorite(for item: MediaItem) {
         guard let index = allItems.firstIndex(where: { $0.id == item.id }) else { return }
-        let targetFavorite = !item.favorite
-        // Optimistic UI update
-        allItems[index].favorite = targetFavorite
+        let id = item.id
+        let target = !allItems[index].favorite
+        let generation = (favoriteGeneration[id] ?? 0) + 1
+        favoriteGeneration[id] = generation
+        if favoriteTasks[id] == nil { confirmedFavorites[id] = allItems[index].favorite }
+        allItems[index].favorite = target
+        errorMessage = nil
+        let previous = favoriteTasks[id]
+        let api = client
 
-        Task {
+        // Serialize writes per media item so the server receives the user's final intent last.
+        favoriteTasks[id] = Task { @MainActor in
+            await previous?.value
             do {
-                let updated = try await client.toggleFavorite(mediaId: item.id, favorite: targetFavorite)
-                await MainActor.run {
-                    if let idx = self.allItems.firstIndex(where: { $0.id == item.id }) {
-                        self.allItems[idx] = updated
-                    }
+                let updated = try await api.toggleFavorite(mediaId: id, favorite: target)
+                confirmedFavorites[id] = updated.favorite
+                if favoriteGeneration[id] == generation,
+                   let index = allItems.firstIndex(where: { $0.id == id }) {
+                    allItems[index].favorite = updated.favorite
                 }
             } catch {
-                // Revert on failure
-                await MainActor.run {
-                    if let idx = self.allItems.firstIndex(where: { $0.id == item.id }) {
-                        self.allItems[idx].favorite = !targetFavorite
+                if favoriteGeneration[id] == generation {
+                    if let index = allItems.firstIndex(where: { $0.id == id }) {
+                        allItems[index].favorite = confirmedFavorites[id] ?? !target
                     }
+                    errorMessage = "收藏失败：\(error.localizedDescription)"
                 }
+            }
+            if favoriteGeneration[id] == generation {
+                favoriteTasks[id] = nil
+                confirmedFavorites[id] = nil
             }
         }
     }

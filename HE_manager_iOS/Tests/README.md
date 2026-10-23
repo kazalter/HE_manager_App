@@ -32,3 +32,20 @@ bash HE_manager_iOS/Tests/run-reader-regressions.sh <模拟器UDID>
 3. 放大后斜向拖动、滚动至首尾、双击还原，确认没有意外空白或位置漂移。
 4. 慢网速下连续阅读长短图混排图集，确认加载不打断手势。
 5. 拖动进度条、切换 PAGE/SCROLL、横竖屏切换、退出重进，核对页码和进度。
+
+## 登录、媒体库与创作者交互回归（macOS）
+
+```sh
+bash HE_manager_iOS/Tests/run-interaction-regressions.sh
+```
+
+需要 macOS 14+、Xcode 命令行工具和 Python 3；不需要模拟器、设备或真实服务器。
+脚本在临时目录编译正式 ApiClient、Preferences、媒体模型及 ViewModel，启动仅监听
+127.0.0.1 的合成 HTTP fixture，退出时停止 fixture。FilterState 和 CreatorsViewModel
+从正式 SwiftUI 文件的类型边界前提取原文，不复制实现，也不加入正式 App target。
+测试使用独立 UserDefaults suite，结束后清除，不读写正式登录或媒体库数据。
+
+覆盖未认证 401 与会话过期的区别、连续收藏的请求顺序/失败回滚/刷新保护、
+媒体库刷新失败保留数据、并发刷新及创作者分类的旧响应保护。
+全部通过输出 `HE_INTERACTION_TESTS_OK`；临时目录保留编译与断言日志。
+这些是实际网络和 ViewModel 回归，不代表 SwiftUI 点击、触摸、VoiceOver 或真机测试。

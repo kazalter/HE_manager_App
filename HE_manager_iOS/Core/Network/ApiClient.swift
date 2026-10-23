@@ -285,8 +285,10 @@ public actor ApiClient {
                    let d = json["detail"] as? String, !d.isEmpty {
                     detail = d
                 }
-                Task { @MainActor in
-                    NotificationCenter.default.post(name: .authDidExpire, object: nil)
+                if auth {
+                    Task { @MainActor in
+                        NotificationCenter.default.post(name: .authDidExpire, object: nil)
+                    }
                 }
                 throw NetworkError.unauthorized(detail)
             }

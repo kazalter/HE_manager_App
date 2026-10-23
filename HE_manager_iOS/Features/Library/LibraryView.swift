@@ -46,6 +46,14 @@ public struct LibraryView: View {
                     // 2. Search & Filter Panel (对齐 Android SearchAndFilterPanelV2)
                     searchAndFilterPanel
 
+                    if let error = viewModel.errorMessage, !viewModel.allItems.isEmpty {
+                        HStack {
+                            Text(error).font(.footnote).foregroundColor(OPTheme.danger)
+                            Button("重试") { Task { await viewModel.loadData() } }
+                                .foregroundColor(OPTheme.yellow).disabled(viewModel.isLoading)
+                        }.padding(.horizontal, 16).padding(.vertical, 8)
+                    }
+
                     // 3. Main Content Area
                     if viewModel.isLoading && viewModel.allItems.isEmpty {
                         loadingView
@@ -109,7 +117,9 @@ public struct LibraryView: View {
             .navigationDestination(isPresented: $isCreatorsOpen) {
                 CreatorsView(onSelectMedia: handleMediaSelection)
             }
-            .fullScreenCover(item: $activeViewer) { viewer in
+            .fullScreenCover(item: $activeViewer, onDismiss: {
+                Task { await viewModel.loadData() }
+            }) { viewer in
                 switch viewer {
                 case .reader(let item, let playlistItems):
                     MangaReaderView(mediaItem: item, playlistItems: playlistItems)
@@ -118,6 +128,9 @@ public struct LibraryView: View {
                 case .audio(let item):
                     AudioPlayerView(mediaItem: item)
                 }
+            }
+            .onChange(of: isCreatorsOpen) { _, isOpen in
+                if !isOpen { Task { await viewModel.loadData() } }
             }
             .task {
                 baseColumns = preferences.galleryColumns
@@ -241,7 +254,7 @@ public struct LibraryView: View {
                     .foregroundColor(OPTheme.opWhiteMuted)
                     .font(.system(size: 14))
 
-                TextField("搜索标题、作者、文件夹", text: $viewModel.searchText)
+                TextField("搜索标题、标签、来源", text: $viewModel.searchText)
                     .font(.system(size: 13.5))
                     .foregroundColor(OPTheme.opWhite)
                     .autocorrectionDisabled()
@@ -507,7 +520,7 @@ public struct LibraryView: View {
     private func handleMediaSelection(_ item: MediaItem) {
         let matchingItems = viewModel.filteredItems
             .filter { $0.mediaType.lowercased() == item.mediaType.lowercased() }
-        let playlistItems = matchingItems.isEmpty ? [item] : matchingItems
+        let playlistItems = matchingItems.contains(where: { $0.id == item.id }) ? matchingItems : [item]
         let playlistIds = playlistItems.map { $0.id }
 
         switch item.mediaType.lowercased() {
